@@ -7,6 +7,18 @@
 
 ---
 
+## 效果预览
+
+以下是用真实文献生成的组会汇报 PPT 截图：
+
+| 封面页 | 结果页（实验图原样嵌入） | 工作模型页 |
+|:------:|:------:|:------:|
+| [![封面页](assets/screenshots/slide_01.png)](assets/screenshots/slide_01.png) | [![结果页](assets/screenshots/slide_07.png)](assets/screenshots/slide_07.png) | [![工作模型](assets/screenshots/slide_13.png)](assets/screenshots/slide_13.png) |
+
+**17 页完整 PPT，7 张实验图原样嵌入，三重质检全部通过。** [查看完整案例](#真实案例)
+
+---
+
 ## 快速开始
 
 ```
