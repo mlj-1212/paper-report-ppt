@@ -21,31 +21,42 @@
 
 ## 30 秒开始
 
-### 方式一：让 AI 帮你安装（推荐，零代码）
+### TRAE 用户（推荐，零配置）
 
-把下面这段话**原样复制**，发给你正在用的 AI：
-
-```
-帮我安装 paper-report-ppt。请按下面步骤操作：
-
-1. 在你的 skills 目录下（比如 ~/.trae/skills/ 或 ~/.claude/skills/）创建目录
-2. 执行 git clone https://github.com/mlj-1212/paper-report-ppt.git 到该目录
-3. 确认目录下包含 SKILL.md、assets/ 等文件
-4. 告诉我安装完成，之后我会上传文献 PDF 让你生成 PPT
-```
-
-AI 会自动帮你完成安装。
-
-### 方式二：手动命令行安装
-
-如果你习惯用命令行，复制下面命令执行：
+如果你用 TRAE，`ppt-master` 已内置预装，无需任何额外操作：
 
 ```bash
-cd ~/.trae/skills
+# 把本 skill 克隆到 TRAE 的 skills 目录
+cd ~/.trae-cn/skills
 git clone https://github.com/mlj-1212/paper-report-ppt.git
 ```
 
-Windows 用户如果没有 `~/.trae/skills` 目录，先创建它再执行。
+克隆完成后直接上传 PDF 说"生成组会汇报 PPT"即可。运行 `python scripts/install_check.py` 可确认环境是否就绪。
+
+### 其他 AI 环境（Claude Code / Cursor / Codex）
+
+本 skill 依赖 `ppt-master`（PPTX 生成引擎），它是 **TRAE 内置 skill，不在公开 GitHub 仓库**。在其他环境中使用需要先获取 `ppt-master`：
+
+```bash
+# 1. 克隆本 skill
+cd ~/.claude/skills   # 或 ~/.cursor/skills / ~/.codex/skills
+git clone https://github.com/mlj-1212/paper-report-ppt.git
+
+# 2. 运行环境自检（会告诉你 ppt-master 是否就绪）
+cd paper-report-ppt
+python scripts/install_check.py
+```
+
+如果自检提示 `ppt-master` 未找到，按以下方式获取：
+
+| 获取方式 | 操作 |
+|----------|------|
+| **方式一（推荐）** | 在安装了 TRAE 的机器上，复制 `~/.trae-cn/skills/ppt-master` 整个目录到你的 skills 目录 |
+| **方式二** | 从 TRAE 社区或 Skill 市场下载 `ppt-master` 打包版本，解压到 skills 目录 |
+
+复制时**保留完整目录结构**（含 `scripts/`、`references/` 等子目录）。
+
+> ⚠️ `ppt-master` 不是公开 GitHub 仓库，不要尝试 `git clone https://github.com/trae-ai/ppt-master.git`（该地址不存在）。
 
 ---
 
@@ -53,40 +64,29 @@ Windows 用户如果没有 `~/.trae/skills` 目录，先创建它再执行。
 
 装好后，按下面两步走即可：
 
-### 第 1 步：复制提示词 + 上传 PDF
+### 第 1 步：上传 PDF
 
-把下面这段话**原样复制**，连同你的文献 PDF 一起发给 AI：
-
-```
-请根据我上传的这篇文献 PDF，生成一份组会汇报 PPT：
-
-1. 汇报语言：中文（或英文）
-2. 页数：15 页左右
-3. 结构：按引言-方法-结果-讨论的顺序组织
-4. 图表：论文中的实验图表原样保留，嵌入到对应的幻灯片中
-5. 演讲稿：同步生成一份配套的演讲稿 Word 文档（含开场白、逐页讲解、时长分配、问题预判）
-
-请先给出汇报大纲让我确认，确认后再生成 PPT。
-```
+把你的文献 PDF 发给 AI，说一句"生成组会汇报 PPT"就行。AI 会自动处理语言识别、页数、结构、图表嵌入、演讲稿生成等所有细节。
 
 ### 第 2 步：确认大纲，等待生成
 
-AI 会先给你一个汇报大纲（类似目录），你回复"确认"后，AI 开始生成 PPT。大约 3 分钟后，你会收到：
+AI 会先给你一个汇报大纲（类似目录），你回复"确认"后，AI 开始生成 PPT。处理完成后，你会收到：
 
 - **一份 PPTX 文件** — 可编辑的组会汇报 PPT，论文图表原样保留
 - **一份 DOCX 文件** — 完整的演讲稿，约 3000–6000 字
 
 ---
 
-## 更多用法示例
+## 进阶用法
 
-| 你想做什么 | 复制这段话给 AI |
+如果你想自定义汇报风格，可以在上传 PDF 时附带说明：
+
+| 你想做什么 | 告诉 AI |
 |---|---|
-| 基础用法 | `请根据这篇文献 PDF 生成一份组会汇报 PPT，约 15 页，中文汇报，同步生成演讲稿。` |
-| 使用自己的 PPT 模板 | `请根据这篇文献 PDF 生成组会汇报 PPT，使用我上传的 PPTX 模板作为视觉风格，约 15 页。` |
-| 侧重创新点 | `请根据这篇文献 PDF 生成 PPT，侧重展示创新点和核心发现，控制在 10 页以内。` |
-| 英文汇报 | `Please generate a group meeting presentation PPT based on this paper PDF, in English, around 15 slides. Also generate a speaker script. ` |
-| 开题/答辩场景 | `请根据这篇文献 PDF 生成文献综述 PPT，用于开题汇报，约 20 页，重点展示研究背景和方法对比。` |
+| 使用自己的 PPT 模板 | "用我上传的 PPTX 模板作为视觉风格" |
+| 侧重创新点 | "侧重展示创新点和核心发现，控制在 10 页以内" |
+| 英文汇报 | "用英文生成汇报" |
+| 开题/答辩场景 | "用于开题汇报，约 20 页，重点展示研究背景和方法对比" |
 
 ---
 
@@ -94,6 +94,9 @@ AI 会先给你一个汇报大纲（类似目录），你回复"确认"后，AI 
 
 | 特性 | 说明 |
 |------|------|
+| **脉络模板预设** | 4 种汇报模板：IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比，一键切换 |
+| **配图智能筛选** | 基于 caption 语义自动筛选和排序配图，过滤装饰图，sha256 去重 |
+| **公式保真渲染** | 检测文献中 LaTeX 数学公式，复杂公式渲染为高清 PNG 嵌入 PPT，简单公式保留可编辑文本 |
 | **文献脉络还原** | 按引言-方法-结果-讨论的结构自动组织汇报内容 |
 | **配图原样保留** | 实验图、数据图从 PDF 原样提取，SHA256 校验，不做裁剪 |
 | **PPT 模板支持** | 可基于你提供的 PPTX 模板生成统一风格演示文稿 |
@@ -211,11 +214,23 @@ P17  Q&A / 致谢
 
 ## 依赖
 
-- [ppt-master](https://github.com/trae-ai/ppt-master) skill（PPTX 生成引擎）
-- Python 3.x（Windows 下自动回退到 `python`）
-- Node.js + `docx` npm 包（演讲稿 DOCX 生成）
+### ppt-master（核心依赖）
 
-依赖会在安装时自动处理，你不需要手动安装。
+`ppt-master` 是 TRAE 内置的 PPTX 生成引擎，**不是公开 GitHub 仓库**：
+
+| 环境 | 状态 | 处理方式 |
+|------|------|----------|
+| **TRAE** | ✅ 内置预装 | 无需操作，自动检测 |
+| **Claude Code / Cursor / Codex** | 需手动获取 | 从 TRAE 机器复制 `~/.trae-cn/skills/ppt-master` 目录 |
+| **纯对话 Chatbot** | ❌ 不支持 | 本 skill 需要文件系统 |
+
+运行 `python scripts/install_check.py` 可自动检测环境并给出针对性指引。
+
+### 其他依赖
+
+- Python 3.x（Windows 下自动回退到 `python`）
+- Node.js + `docx` npm 包（演讲稿 DOCX 生成，可选）
+- `matplotlib`（公式渲染为 PNG，可选）
 
 ---
 
@@ -232,6 +247,9 @@ P17  Q&A / 致谢
 ---
 
 ## FAQ
+
+**Q：提示"依赖 ppt-master skill"怎么办？**
+A：`ppt-master` 是 TRAE 内置 skill（不在公开 GitHub 仓库）。TRAE 用户无需操作；其他环境运行 `python scripts/install_check.py` 获取针对性指引，或从 TRAE 机器复制 `~/.trae-cn/skills/ppt-master` 目录到你的 skills 目录。**不要尝试 `git clone https://github.com/trae-ai/ppt-master.git`，该地址不存在。**
 
 **Q：PDF 中的矢量图（流程图/图表）能保留吗？**
 A：位图原样嵌入；矢量图默认不提取，可在第一步选择栅格化（180 DPI）保留。
@@ -253,9 +271,9 @@ A：当前版本支持单篇文献。多文献综述模式在优化方向中规�
 ## 优化方向
 
 - [ ] 多文献综述模式（2–5 篇文献对比）
-- [ ] 配图智能筛选与排序（基于 caption 语义）
-- [ ] 公式保真（LaTeX 渲染为 PNG 嵌入）
-- [ ] 组会脉络模板预设（IMRaD / 问题驱动 / 创新点驱动 / 综述对比）
+- [x] 配图智能筛选与排序（基于 caption 语义，含 filter_images.py 脚本）
+- [x] 公式保真（LaTeX 渲染为 PNG 嵌入，含 render_formula.py 脚本）
+- [x] 组会脉络模板预设（IMRaD / 问题驱动 / 创新点驱动 / 综述对比）
 - [ ] 增量更新（文献更新后只重新生成变化页面）
 
 ---

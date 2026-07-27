@@ -11,12 +11,33 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 
 ---
 
-## 依赖与前置条件
+## 协作引擎与路径解析
 
-- **必须依赖**：`ppt-master` skill 已安装。脚本根目录：
-  `${PPT_MASTER_DIR}` = `c:\Users\Administrator\.trae-cn\skills\ppt-master`
-- **可选依赖**：`pdf` skill（用于超长文献的逐页检索证据）。脚本根目录：
-  `${PDF_SKILL_DIR}` = `c:\Users\Administrator\.trae-cn\builtin\work\hebe\skills\pdf`
+本 skill 复用 `ppt-master` 的 Generate PPTX 路由完成 PPTX 生成，自身只负责文献解析、组会脉络结构化、配图契约适配与模板引导。`ppt-master` 的定位与安装方式因运行环境而异，**不要在 skill 加载阶段因依赖检查阻断用户**——依赖解析放在 S0 工作流内自动完成（见下文）。
+
+### `ppt-master` 定位
+
+| 运行环境 | `ppt-master` 状态 | 获取方式 |
+|---|---|---|
+| TRAE（SOLO CN / Cloud） | 内置 skill，通常已预装 | 无需安装；路径自动检测 |
+| Claude Code / Cursor / Codex | 需用户自行安装 | 用户从 TRAE 导出，或按 README 指引安装 |
+| 无文件系统的 Chatbot | 不适用 | 本 skill 不支持纯对话环境 |
+
+### `${PPT_MASTER_DIR}` 路径解析（S0 自动执行）
+
+工作流进入 S0 时按以下优先级解析 `ppt-master` 路径，**找不到时进入降级模式而非报错退出**：
+
+1. 环境变量 `PPT_MASTER_DIR`（如果已设置）
+2. 与本 skill 同级的 `../ppt-master`（TRAE / Claude Code / Cursor 的常见布局）
+3. `~/.trae-cn/skills/ppt-master`、`~/.trae/skills/ppt-master`、`~/.claude/skills/ppt-master`、`~/.cursor/skills/ppt-master`
+4. Windows：`%APPDATA%\TRAE SOLO CN\skills\ppt-master`、`%LOCALAPPDATA%\TRAE\skills\ppt-master`
+
+若以上均未命中，S0 输出明确提示："当前环境未检测到 `ppt-master`，请按 README 指引安装后重试"，并停止工作流（不生成半成品）。
+
+### 其他约定
+
+- **本 skill 目录**：`${PAPER_REPORT_PPT_DIR}` 为当前 SKILL.md 所在目录（即 `paper-report-ppt` skill 根目录）
+- **可选协作**：`pdf` skill（用于超长文献的逐页检索证据，通常为内置）
 - **运行环境**：Windows 下若 `python3` 不可用，改用 `python`（ppt-master 已声明此规则）。
 - **工作目录约定**：
   - 中间素材（MD / pages / outline）放临时工作目录 `<work_dir>`
@@ -54,9 +75,29 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 ### S0 — 意图确认与需求收集
 
 - **输入**：用户对话 + PDF 路径（+ 可选模板 PPTX）
-- **输出**：需求摘要（场景 / 页数 / 语言 / 模板 / 侧重 + 矢量图处理决策）
-- **脚本**：无（对话收集）
-- **门禁**：⛔ 用户确认需求摘要后进入 S1
+- **输出**：需求摘要（场景 / 页数 / 语言 / 模板 / 侧重 + 矢量图处理决策）+ 已解析的 `${PPT_MASTER_DIR}`
+- **脚本**：`scripts/install_check.py`（可选，用于环境自检）
+- **门禁**：⛔ ① `ppt-master` 路径已解析 ② 用户确认需求摘要后进入 S1
+
+#### S0.1 协作引擎解析（首要步骤，不阻断 skill 加载）
+
+进入 S0 后**第一件事**是按"`${PPT_MASTER_DIR}` 路径解析"优先级列表定位 `ppt-master`：
+
+```bash
+# 可选：运行自检脚本，输出解析结果与缺失项建议
+python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py
+```
+
+脚本行为：
+- **TRAE 环境**：自动检测到内置 `ppt-master`，输出路径并继续
+- **Claude Code / Cursor / Codex**：若检测到 `ppt-master` 则继续；若未检测到，输出清晰安装指引（见 README "分环境安装"），**不尝试从不存在的 GitHub 仓库克隆**
+- **纯对话环境**：提示本 skill 需要文件系统支持，礼貌退出
+
+> **关键原则**：`ppt-master` 是 TRAE 内置 skill，**不是公开 GitHub 仓库**。脚本不会尝试 `git clone` 一个不存在的仓库，而是给出与运行环境匹配的真实指引。脚本退出码：0=就绪，2=需用户操作，3=环境不支持。
+
+解析成功后，把路径写入 `${PPT_MASTER_DIR}` 供后续 S1–S5 使用。
+
+#### S0.2 需求收集
 
 **收集项**：
 1. PDF 路径
@@ -78,6 +119,7 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
   - `<work_dir>/<stem>.md`（结构化 Markdown，含 `<!-- Page N -->` 标记）
   - `<work_dir>/<stem>_files/`（原样提取的配图 PNG/JPG + `image_manifest.json`）
   - `<work_dir>/pages/page_XXXX.txt`（逐页文本，长文献检索用）
+  - `<work_dir>/formula_list.json`（公式检测清单，见 `references/formula-rendering.md`）
 - **门禁**：✅ `<stem>.md` 与 `image_manifest.json` 存在
 
 **主脚本**（ppt-master 管线，原样提取图片不重采样）：
@@ -86,7 +128,9 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 python ${PPT_MASTER_DIR}/scripts/source_to_md.py <pdf_path> -o <work_dir>/<stem>.md
 ```
 
-> `source_to_md.py` 调度 `pdf_to_md.py`，使用 PyMuPDF 提取，**图片原样写 bytes 不重采样**（`f.write(image_data)`），并生成 `<stem>_files/image_manifest.json`（含 bbox / pixel_w / pixel_h / sha256 / source_kind）。
+> `source_to_md.py` 调度 `pdf_to_md.py`，使用 PyMuPDF 提取，**图片原样写 bytes 不重采样**（`f.write(image_data)`），并生成 `<stem>_files/image_manifest.json`（含 bbox / pixel_w / pixel_h / sha256 / source_kind / caption / figure_number）。
+
+**公式检测**（新增）：在 `<stem>.md` 中搜索 LaTeX 数学标记（`$...$` / `$$...$$` / `\(...\)` / `\[...\]`），生成 `formula_list.json`（每条记录：id / latex / source_page / complexity / render_as）。详细规则见 `references/formula-rendering.md`。
 
 **长文献补充检索**（可选，>30 页时启用，用 pdf skill）：
 
@@ -101,40 +145,50 @@ python ${PDF_SKILL_DIR}/scripts/search_extracted.py <work_dir> --query-file <wor
 
 ### S2 — 组会汇报脉络大纲生成
 
-- **输入**：`<stem>.md` + `image_manifest.json`
+- **输入**：`<stem>.md` + `image_manifest.json` + `formula_list.json`
 - **输出**：`<work_dir>/outline.md`（组会脉络页序列）
-- **脚本**：无（主 agent 基于 IMRaD 结构生成）
+- **脚本**：无（主 agent 基于脉络模板预设生成）
 - **门禁**：⛔ 用户确认大纲后进入 S3
 
-**默认脉络**（IMRaD 适配，可按侧重调整）：
+#### 脉络模板预设
 
-| 页 | 内容 | 必备 |
-|---|---|---|
-| P01 | 封面（标题 / 作者 / 汇报人 / 日期） | 是 |
-| P02 | 目录 | 是 |
-| P03 | 文献选择依据（为什么读这篇） | 是 |
-| P04 | 研究背景与问题 | 是 |
-| P05 | 相关工作（简） | 否 |
-| P06 | 方法 / 模型 | 是 |
-| P07 | 方法关键图（配图原样） | 是 |
-| P08 | 实验设置 | 是 |
-| P09 | 主要结果（配图原样） | 是 |
-| P10 | 结果分析 / 讨论 | 是 |
-| P11 | 创新点总结 | 是 |
-| P12 | 局限性与未来工作 | 是 |
-| P13 | 结论 | 是 |
-| P14 | Q&A / 致谢 | 是 |
+根据 S0 收集的"侧重"方向，从 `references/outline-templates.md` 选取对应模板，自动套用页序列：
 
-**每页大纲需标注**：
+| 侧重方向 | 模板 | 页数范围 | 适用场景 |
+|----------|------|:---:|------|
+| IMRaD 均衡 | 模板 1 | 14–17 | 常规组会汇报（默认） |
+| 问题驱动 | 模板 2 | 10–12 | 紧凑汇报，聚焦"问题→解决" |
+| 创新点驱动 | 模板 3 | 13–16 | 开题/中期/答辩，强调创新 |
+| 综述对比 | 模板 4 | 12–15 | 文献综述，横向对比 |
+
+> 用户未指定时默认使用模板 1。模板可微调：确认大纲时增减页面或调整配图分配。
+
+#### 配图智能筛选与排序
+
+严格按照 `references/image-selection.md` 的规则对配图进行筛选、排序和去重：
+
+```bash
+python ${PAPER_REPORT_PPT_DIR}/scripts/filter_images.py <work_dir>/<stem>_files/image_manifest.json --max-per-page 2
+```
+
+输出 `image_manifest_filtered.json`（筛选后列表），包含：
+- 分类：按 caption 语义判断图片类型，自动过滤装饰性小图/logo/二维码
+- 去重：按 sha256 去除重复图片
+- 排序：按章节顺序排列（引言→方法→结果→讨论）
+- 标记：标记图片所属章节，便于分配到对应页
+
+**执行规则**：
+1. **筛选**：带 `Figure N` caption 的核心图优先保留，作者照片/logo/二维码过滤掉
+2. **去重**：sha256 完全相同的图片只保留一次
+3. **排序**：按 caption 出现的页码顺序，严格对应论文章节
+4. **分配**：每页最多 1–2 张配图，方法图→方法页，结果图→结果页，模型图→工作模型页
+
+#### 每页大纲需标注
+
 - 该页对应文献的章节 / 页码区间
-- 该页应嵌入的配图文件名（从 `image_manifest.json` 选取，标注 figure 编号与源页码）
+- 该页应嵌入的配图文件名（从 `image_manifest.json` 经筛选排序后选取，标注 figure 编号与源页码）
+- 该页应嵌入的公式（从 `formula_list.json` 选取，标注公式 ID）
 - 关键论点（≤3 条）
-
-**配图选取规则**：
-- 优先选取带 `Figure N` caption 的配图
-- 每页最多 1–2 张配图，避免信息过载
-- 装饰性小图 / logo 不纳入
-- 用 `image_manifest.json` 的 sha256 去重
 
 ---
 
@@ -207,6 +261,21 @@ python ${PPT_MASTER_DIR}/scripts/analyze_images.py <project_path>/images
 #### Step 5（图片获取）
 
 文献配图全为 `user / Existing`，**整步跳过**（无 ai / web / slice 行）。
+
+#### Step 5.5（公式渲染） — 新增
+
+若 `formula_list.json` 中存在复杂公式（`complexity=complex`），在 Executor 生成 SVG 前先渲染公式为 PNG：
+
+```bash
+python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list.json <project_path>/images
+```
+
+> 公式图片以 `formula_XX.png` 命名输出到 `images/` 目录，策略标记为 `Acquire Via: formula | Status: Existing | Crop Policy: no-crop`。渲染参数：300 DPI，透明背景，自动裁剪白边。详细规则见 `references/formula-rendering.md`。
+
+**渲染后处理**：
+- 脚本自动回写 `formula_list.json`，补充 `rendered_path`、`rendered_width`、`rendered_height`
+- PNG 文件纳入图片资源清单，与文献配图统一管理
+- 渲染完成后，在 SVG 中嵌入公式 PNG（display 公式单独占一行，inline 公式与正文同行）
 
 #### Step 6（Executor 阶段）
 
@@ -454,14 +523,14 @@ python ${PPT_MASTER_DIR}/scripts/svg_to_pptx.py <project_path>
 
 1. **多文献综述模式**：支持输入 2–5 篇文献，生成对比矩阵页（方法对比表、结果对比表），脉络切换为综述式（背景→分类→对比→趋势→展望）。
 
-2. **配图智能筛选与排序**：基于 figure caption 语义和正文引用位置（"as shown in Figure 3"），自动筛选核心配图并按章节排序；过滤纯装饰图与重复图（image_manifest.json 的 source_sha256 去重）。
+2. **配图智能筛选与排序**：✅ 已实现。基于 figure caption 语义和正文引用位置，自动筛选核心配图、按章节排序、sha256 去重。详细规则见 `references/image-selection.md`。
 
-3. **演讲稿与 speaker notes 双层生成**：✅ 已实现。speaker notes 作为 PPT 备注栏简短提示（每页 50-100 字），演讲稿作为独立 DOCX 完整口头文字稿（全文 3000-6000 字，含开场白/过渡语/结束语/问题预判，docx-js 排版含标题层级/时长表格/页码），两者同步生成、互为补充。
+3. **演讲稿与 speaker notes 双层生成**：✅ 已实现。speaker notes 作为 PPT 备注栏简短提示，演讲稿作为独立 DOCX 完整口头文字稿，两者同步生成。
 
-4. **公式保真**：检测文献中的关键公式（`$...$` / `$$...$$`），通过 ppt-master 的 `latex_render.py` 渲染为 PNG 原样嵌入（mixed 策略：复杂公式渲染、简单 inline 保留可编辑文本），公式行标记 `Acquire Via: formula \| Crop Policy: no-crop`。
+4. **公式保真**：✅ 已实现。检测文献中 LaTeX 数学标记，复杂公式渲染为高清 PNG（300 DPI，透明背景）嵌入 PPTX，简单公式保留为可编辑文本。详细规则见 `references/formula-rendering.md`。
 
 5. **双栏论文阅读顺序适配**：检测双栏排版（PDF bbox 横向分布），分栏提取并按正确阅读顺序合并文本，避免左右栏文字交错。
 
-6. **组会脉络模板预设**：预置 4 种脉络模板（IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比），用户在 S0 一键选择，S2 自动套用对应页序列。
+6. **组会脉络模板预设**：✅ 已实现。预置 4 种脉络模板（IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比），用户在 S0 一键选择，S2 自动套用对应页序列。详细规则见 `references/outline-templates.md`。
 
 7. **增量更新**：文献更新（新版本 PDF）后，按 image_manifest.json 的 source_sha256 比对，只重新生成配图变化的页与受影响章节页，而非全量重做。
