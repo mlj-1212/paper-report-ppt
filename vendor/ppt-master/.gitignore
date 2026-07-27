@@ -1,0 +1,12 @@
+# Python cache (never commit)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+
+# Runtime temp
+.env
+*.log
+tmp/

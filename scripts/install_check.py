@@ -2,22 +2,19 @@
 """
 Environment check and dependency resolver for paper-report-ppt.
 
-IMPORTANT: `ppt-master` is a TRAE built-in skill, NOT a public GitHub repo.
-This script does NOT attempt to clone a non-existent repository. Instead it:
-  1. Detects the running environment (TRAE / Claude Code / Cursor / Codex)
-  2. Scans common skills directories for `ppt-master`
-  3. If found: reports the resolved path and exits 0 (ready)
-  4. If missing: prints environment-specific guidance and exits 2 (needs user action)
-  5. If no filesystem: exits 3 (unsupported environment)
+ppt-master is BUNDLED in vendor/ppt-master/ — users do NOT need to install it
+separately. This script:
+  1. Checks vendor/ppt-master/ (bundled, highest priority)
+  2. Falls back to TRAE built-in or other skills directories
+  3. Reports the resolved PPT_MASTER_DIR and checks Python/Node runtimes
 
 Exit codes:
   0 = ready, PPT_MASTER_DIR resolved
-  2 = needs user action (ppt-master not found, guidance printed)
+  2 = needs user action (ppt-master not found anywhere)
   3 = unsupported environment (no filesystem / pure chatbot)
 
 Usage:
   python install_check.py
-  python install_check.py --skills-dir /custom/skills/path
   python install_check.py --json   # machine-readable output
 """
 
@@ -86,21 +83,31 @@ def find_skills_dirs():
 
 def find_ppt_master():
     """
-    Search all candidate skills directories for ppt-master.
-    Returns (path, skills_dir) if found, else (None, None).
+    Search for ppt-master in priority order:
+    1. Environment variable PPT_MASTER_DIR
+    2. vendor/ppt-master (bundled with this skill)
+    3. TRAE / Claude / Cursor / Codex skills directories
+    Returns (path, source) if found, else (None, None).
     """
     # 1. Explicit env var wins
     env_path = os.environ.get("PPT_MASTER_DIR")
     if env_path:
         p = Path(env_path)
         if (p / PPT_MASTER_ENTRY).exists():
-            return p, p.parent
+            return p, "env-var"
 
-    # 2. Scan candidate skills dirs
+    # 2. Bundled vendor version (highest priority for portability)
+    script_dir = Path(__file__).resolve().parent
+    skill_root = script_dir.parent  # paper-report-ppt/
+    vendor_path = skill_root / "vendor" / PPT_MASTER_SKILL
+    if (vendor_path / PPT_MASTER_ENTRY).exists():
+        return vendor_path, "vendor"
+
+    # 3. Scan candidate skills dirs (TRAE built-in, Claude, Cursor, etc.)
     for skills_dir in find_skills_dirs():
         candidate = skills_dir / PPT_MASTER_SKILL
         if (candidate / PPT_MASTER_ENTRY).exists():
-            return candidate, skills_dir
+            return candidate, str(skills_dir)
 
     return None, None
 
@@ -224,7 +231,7 @@ def main():
     env = detect_environment()
 
     # Scan for ppt-master
-    ppt_master_path, skills_dir = find_ppt_master()
+    ppt_master_path, source = find_ppt_master()
 
     # Build result
     result = {
@@ -232,7 +239,7 @@ def main():
         "ppt_master": {
             "found": ppt_master_path is not None,
             "path": str(ppt_master_path) if ppt_master_path else None,
-            "skills_dir": str(skills_dir) if skills_dir else None,
+            "source": source if source else None,
         },
         "python": check_python_runtime(),
         "node": check_node_runtime(),
@@ -252,25 +259,19 @@ def main():
 
     print("\n--- ppt-master 检测 ---")
     if ppt_master_path:
+        source_label = {
+            "vendor": "内置 (vendor/ppt-master/)",
+            "env-var": "环境变量 PPT_MASTER_DIR",
+        }.get(source, source)
         print(f"  ✅ 已找到 -> {ppt_master_path}")
-        print(f"  Skills 目录：{skills_dir}")
+        print(f"  来源：{source_label}")
         print(f"  建议：将 PPT_MASTER_DIR 设为 {ppt_master_path}")
     else:
-        print(f"  ❌ 未找到 ppt-master skill")
-        scanned = find_skills_dirs()
-        print(f"\n  已扫描以下目录：")
-        for d in scanned:
-            exists = "存在" if d.exists() else "不存在"
-            print(f"    [{exists}] {d}")
-
-        guidance = get_install_guidance(env)
-        print(f"\n--- 安装指引（{guidance['title']}）---")
-        for i, step in enumerate(guidance["steps"], 1):
-            print(f"  {i}. {step}")
-
-        print(f"\n  ⚠️ 注意：ppt-master 是 TRAE 内置 skill，不是公开 GitHub 仓库。")
-        print(f"     不要尝试 git clone https://github.com/trae-ai/ppt-master.git")
-        print(f"     （该地址不存在，克隆会失败）")
+        print(f"  ❌ 未找到 ppt-master")
+        print(f"\n  vendor/ppt-master/ 目录不存在，可能克隆不完整。")
+        print(f"  请重新克隆仓库：")
+        print(f"    git clone https://github.com/mlj-1212/paper-report-ppt.git")
+        print(f"\n  或检查环境变量 PPT_MASTER_DIR 是否指向有效的 ppt-master 目录。")
 
     print("\n--- Python 运行时 ---")
     py = result["python"]
@@ -296,7 +297,7 @@ def main():
         print("=" * 60)
         return EXIT_READY
     else:
-        print("❌ ppt-master 未就绪，请按上方指引安装后重新运行本脚本")
+        print("❌ ppt-master 未就绪，请重新克隆仓库或检查环境变量")
         print("=" * 60)
         return EXIT_NEEDS_ACTION
 

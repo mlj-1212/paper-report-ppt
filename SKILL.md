@@ -13,26 +13,27 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 
 ## 协作引擎与路径解析
 
-本 skill 复用 `ppt-master` 的 Generate PPTX 路由完成 PPTX 生成，自身只负责文献解析、组会脉络结构化、配图契约适配与模板引导。`ppt-master` 的定位与安装方式因运行环境而异，**不要在 skill 加载阶段因依赖检查阻断用户**——依赖解析放在 S0 工作流内自动完成（见下文）。
+本 skill 复用 `ppt-master` 的 Generate PPTX 路由完成 PPTX 生成，自身只负责文献解析、组会脉络结构化、配图契约适配与模板引导。`ppt-master` 已**内置**在本 skill 的 `vendor/ppt-master/` 目录中，用户无需单独安装。
 
 ### `ppt-master` 定位
 
 | 运行环境 | `ppt-master` 状态 | 获取方式 |
 |---|---|---|
-| TRAE（SOLO CN / Cloud） | 内置 skill，通常已预装 | 无需安装；路径自动检测 |
-| Claude Code / Cursor / Codex | 需用户自行安装 | 用户从 TRAE 导出，或按 README 指引安装 |
+| 任何有文件系统的 AI 环境 | ✅ 已内置 | 克隆本 skill 即包含 `vendor/ppt-master/`，无需额外操作 |
+| TRAE（SOLO CN / Cloud） | 内置 + vendor 双保险 | 优先用 TRAE 内置版本，回退到 vendor 版本 |
 | 无文件系统的 Chatbot | 不适用 | 本 skill 不支持纯对话环境 |
 
 ### `${PPT_MASTER_DIR}` 路径解析（S0 自动执行）
 
-工作流进入 S0 时按以下优先级解析 `ppt-master` 路径，**找不到时进入降级模式而非报错退出**：
+工作流进入 S0 时按以下优先级解析 `ppt-master` 路径：
 
 1. 环境变量 `PPT_MASTER_DIR`（如果已设置）
-2. 与本 skill 同级的 `../ppt-master`（TRAE / Claude Code / Cursor 的常见布局）
-3. `~/.trae-cn/skills/ppt-master`、`~/.trae/skills/ppt-master`、`~/.claude/skills/ppt-master`、`~/.cursor/skills/ppt-master`
-4. Windows：`%APPDATA%\TRAE SOLO CN\skills\ppt-master`、`%LOCALAPPDATA%\TRAE\skills\ppt-master`
+2. **`vendor/ppt-master`（内置版本，最高优先级）** — `${PAPER_REPORT_PPT_DIR}/vendor/ppt-master`
+3. TRAE 内置：`~/.trae-cn/skills/ppt-master`、`~/.trae/skills/ppt-master`
+4. 其他环境：`~/.claude/skills/ppt-master`、`~/.cursor/skills/ppt-master`、`~/.codex/skills/ppt-master`
+5. Windows：`%APPDATA%\TRAE SOLO CN\skills\ppt-master`、`%LOCALAPPDATA%\TRAE\skills\ppt-master`
 
-若以上均未命中，S0 输出明确提示："当前环境未检测到 `ppt-master`，请按 README 指引安装后重试"，并停止工作流（不生成半成品）。
+> **关键设计**：`vendor/ppt-master/` 是 `ppt-master` 的完整副本（含 scripts / references / templates / workflows），与本 skill 一起克隆。用户只需克隆一个仓库，无需单独获取 `ppt-master`。
 
 ### 其他约定
 
@@ -89,11 +90,12 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py
 ```
 
 脚本行为：
-- **TRAE 环境**：自动检测到内置 `ppt-master`，输出路径并继续
-- **Claude Code / Cursor / Codex**：若检测到 `ppt-master` 则继续；若未检测到，输出清晰安装指引（见 README "分环境安装"），**不尝试从不存在的 GitHub 仓库克隆**
+- **任何环境**：优先检测 `vendor/ppt-master`（内置版本），找到即就绪
+- **TRAE 环境**：若 vendor 版本不可用，回退检测 TRAE 内置 `ppt-master`
+- **其他 AI 环境**：vendor 版本即可满足，无需额外安装
 - **纯对话环境**：提示本 skill 需要文件系统支持，礼貌退出
 
-> **关键原则**：`ppt-master` 是 TRAE 内置 skill，**不是公开 GitHub 仓库**。脚本不会尝试 `git clone` 一个不存在的仓库，而是给出与运行环境匹配的真实指引。脚本退出码：0=就绪，2=需用户操作，3=环境不支持。
+> **关键原则**：`ppt-master` 已内置在 `vendor/ppt-master/` 目录中，用户克隆本 skill 后即可使用，**无需单独安装**。脚本退出码：0=就绪，2=需用户操作，3=环境不支持。
 
 解析成功后，把路径写入 `${PPT_MASTER_DIR}` 供后续 S1–S5 使用。
 

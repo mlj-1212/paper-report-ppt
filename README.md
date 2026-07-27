@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TRAE Skill](https://img.shields.io/badge/TRAE-Skill-green.svg)]()
 
-> 上传一篇文献 PDF，自动生成**可编辑**的组会汇报 PPT。论文中的实验图表原样保留，同步生成配套的演讲稿 Word 文档。
+> 上传一篇文献 PDF，自动生成**可编辑**的组会汇报 PPT。论文中的实验图表原样保留，同步生成配套的演讲稿 Word 文档。`ppt-master` 引擎已内置，克隆即用，无需额外安装依赖。
 
 ---
 
@@ -21,42 +21,34 @@
 
 ## 30 秒开始
 
-### TRAE 用户（推荐，零配置）
+### 一条命令安装（所有 AI 环境通用）
 
-如果你用 TRAE，`ppt-master` 已内置预装，无需任何额外操作：
+`ppt-master` 已**内置**在本 skill 的 `vendor/ppt-master/` 目录中，克隆即可使用，无需单独安装任何依赖：
 
 ```bash
-# 把本 skill 克隆到 TRAE 的 skills 目录
-cd ~/.trae-cn/skills
-git clone https://github.com/mlj-1212/paper-report-ppt.git
+# TRAE 用户
+cd ~/.trae-cn/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
+
+# Claude Code 用户
+cd ~/.claude/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
+
+# Cursor 用户
+cd ~/.cursor/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
+
+# Codex 用户
+cd ~/.codex/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
 ```
 
-克隆完成后直接上传 PDF 说"生成组会汇报 PPT"即可。运行 `python scripts/install_check.py` 可确认环境是否就绪。
-
-### 其他 AI 环境（Claude Code / Cursor / Codex）
-
-本 skill 依赖 `ppt-master`（PPTX 生成引擎），它是 **TRAE 内置 skill，不在公开 GitHub 仓库**。在其他环境中使用需要先获取 `ppt-master`：
+克隆完成后，运行环境自检确认就绪：
 
 ```bash
-# 1. 克隆本 skill
-cd ~/.claude/skills   # 或 ~/.cursor/skills / ~/.codex/skills
-git clone https://github.com/mlj-1212/paper-report-ppt.git
-
-# 2. 运行环境自检（会告诉你 ppt-master 是否就绪）
 cd paper-report-ppt
 python scripts/install_check.py
 ```
 
-如果自检提示 `ppt-master` 未找到，按以下方式获取：
+看到 `✅ 核心依赖就绪` 即可开始使用。上传 PDF 说"生成组会汇报 PPT"就行。
 
-| 获取方式 | 操作 |
-|----------|------|
-| **方式一（推荐）** | 在安装了 TRAE 的机器上，复制 `~/.trae-cn/skills/ppt-master` 整个目录到你的 skills 目录 |
-| **方式二** | 从 TRAE 社区或 Skill 市场下载 `ppt-master` 打包版本，解压到 skills 目录 |
-
-复制时**保留完整目录结构**（含 `scripts/`、`references/` 等子目录）。
-
-> ⚠️ `ppt-master` 不是公开 GitHub 仓库，不要尝试 `git clone https://github.com/trae-ai/ppt-master.git`（该地址不存在）。
+> **为什么仓库较大（~61 MB）？** 因为 `ppt-master`（PPTX 生成引擎）已完整内置在 `vendor/ppt-master/` 中，用户无需额外安装。这是为了让任何 AI 环境都能开箱即用。
 
 ---
 
@@ -214,19 +206,20 @@ P17  Q&A / 致谢
 
 ## 依赖
 
-### ppt-master（核心依赖）
+### ppt-master（已内置）
 
-`ppt-master` 是 TRAE 内置的 PPTX 生成引擎，**不是公开 GitHub 仓库**：
+`ppt-master`（PPTX 生成引擎）已**完整内置**在 `vendor/ppt-master/` 目录中：
 
 | 环境 | 状态 | 处理方式 |
 |------|------|----------|
-| **TRAE** | ✅ 内置预装 | 无需操作，自动检测 |
-| **Claude Code / Cursor / Codex** | 需手动获取 | 从 TRAE 机器复制 `~/.trae-cn/skills/ppt-master` 目录 |
-| **纯对话 Chatbot** | ❌ 不支持 | 本 skill 需要文件系统 |
+| **任何 AI 环境** | ✅ 已内置 | 克隆本 skill 即包含，无需额外操作 |
+| **TRAE** | 内置 + vendor 双保险 | 优先用 vendor 版本，保证一致性 |
 
-运行 `python scripts/install_check.py` 可自动检测环境并给出针对性指引。
+路径解析优先级：环境变量 → `vendor/ppt-master/` → TRAE 内置 → 其他 skills 目录。
 
-### 其他依赖
+运行 `python scripts/install_check.py` 可确认路径是否正确解析。
+
+### 运行时依赖
 
 - Python 3.x（Windows 下自动回退到 `python`）
 - Node.js + `docx` npm 包（演讲稿 DOCX 生成，可选）
@@ -249,7 +242,7 @@ P17  Q&A / 致谢
 ## FAQ
 
 **Q：提示"依赖 ppt-master skill"怎么办？**
-A：`ppt-master` 是 TRAE 内置 skill（不在公开 GitHub 仓库）。TRAE 用户无需操作；其他环境运行 `python scripts/install_check.py` 获取针对性指引，或从 TRAE 机器复制 `~/.trae-cn/skills/ppt-master` 目录到你的 skills 目录。**不要尝试 `git clone https://github.com/trae-ai/ppt-master.git`，该地址不存在。**
+A：`ppt-master` 已内置在 `vendor/ppt-master/` 目录中，正常克隆即可获得。如果提示未找到，可能是克隆不完整，重新执行 `git clone https://github.com/mlj-1212/paper-report-ppt.git` 即可。运行 `python scripts/install_check.py` 可确认状态。
 
 **Q：PDF 中的矢量图（流程图/图表）能保留吗？**
 A：位图原样嵌入；矢量图默认不提取，可在第一步选择栅格化（180 DPI）保留。
