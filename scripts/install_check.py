@@ -199,7 +199,9 @@ def check_python_runtime():
     """Check Python version and key packages."""
     info = {"version": sys.version.split()[0], "packages": {}}
     packages = [
-        ("matplotlib", "公式渲染（可选）"),
+        ("matplotlib", "公式渲染（路径A可选）"),
+        ("pptx", "PPTX直接生成（路径B必需）"),
+        ("fitz", "PDF解析（PyMuPDF，路径B必需）"),
     ]
     for pkg, desc in packages:
         try:
@@ -234,6 +236,29 @@ def main():
     ppt_master_path, source = find_ppt_master()
 
     # Build result
+    # Determine recommended generation path
+    is_trae = env == "trae"
+    has_pptx = False
+    has_fitz = False
+    # We need to check packages before building result, so do it inline
+    try:
+        __import__("pptx")
+        has_pptx = True
+    except ImportError:
+        pass
+    try:
+        __import__("fitz")
+        has_fitz = True
+    except ImportError:
+        pass
+
+    if is_trae:
+        recommended_path = "A (SVG pipeline)"
+    elif has_pptx and has_fitz:
+        recommended_path = "B (direct generation)"
+    else:
+        recommended_path = "B (needs pip install python-pptx PyMuPDF)"
+
     result = {
         "environment": env,
         "ppt_master": {
@@ -244,6 +269,7 @@ def main():
         "python": check_python_runtime(),
         "node": check_node_runtime(),
         "platform": platform.platform(),
+        "recommended_path": recommended_path,
     }
 
     if use_json:
@@ -294,12 +320,26 @@ def main():
     if ppt_master_path:
         print("✅ 核心依赖就绪，可以开始使用 paper-report-ppt")
         print(f"   PPT_MASTER_DIR = {ppt_master_path}")
-        print("=" * 60)
-        return EXIT_READY
     else:
         print("❌ ppt-master 未就绪，请重新克隆仓库或检查环境变量")
         print("=" * 60)
         return EXIT_NEEDS_ACTION
+
+    # Generation path recommendation
+    print(f"\n--- 推荐生成路径 ---")
+    if is_trae:
+        print(f"  路径 A（SVG 管线）✅ 推荐 — TRAE 环境深度集成 ppt-master，质量最高")
+    elif has_pptx and has_fitz:
+        print(f"  路径 B（直接生成）✅ 推荐 — gen_pptx.py 就绪，所有非 TRAE 环境通用")
+    else:
+        missing = []
+        if not has_pptx:
+            missing.append("python-pptx")
+        if not has_fitz:
+            missing.append("PyMuPDF")
+        print(f"  路径 B（直接生成）⚠️ 需要安装: pip install {' '.join(missing)}")
+
+    print("=" * 60)
 
 
 if __name__ == "__main__":

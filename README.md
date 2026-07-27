@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TRAE Skill](https://img.shields.io/badge/TRAE-Skill-green.svg)]()
 
-> 上传一篇文献 PDF，自动生成**可编辑**的组会汇报 PPT。论文中的实验图表原样保留，同步生成配套的演讲稿 Word 文档。`ppt-master` 引擎已内置，克隆即用，无需额外安装依赖。
+> 上传一篇文献 PDF，自动生成**可编辑**的组会汇报 PPT。论文中的实验图表原样保留，同步生成配套的演讲稿 Word 文档。`ppt-master` 引擎已内置，克隆即用，无需额外安装依赖。**支持 WorkBuddy / Claude Code / Cursor / Qwen 等所有 AI 桌面应用，跨平台一致的高质量输出。**
 
 ---
 
@@ -176,18 +176,23 @@ P17  Q&A / 致谢
 
 ## 平台支持
 
-| 平台 | 支持状态 | 说明 |
-|------|---------|------|
-| **TRAE** | ✅ 支持 | 原生 Skill 工作流，上传 PDF 即可生成 |
-| **Claude Code** | ✅ 支持 | 克隆到 ~/.claude/skills/ 目录即可使用 |
-| **Cursor** | ✅ 支持 | 克隆到 ~/.cursor/skills/ 目录即可使用 |
-| **Codex** | ✅ 支持 | 有文件系统和浏览器预览能力即可 |
-| **其他 AI Agent** | 可用 | 需要能读写文件并执行 shell 命令 |
-| **普通 Chatbot** | ⚠️ 不推荐 | 无文件系统时无法生成完整 PPT 文件 |
+| 平台 | 支持状态 | 生成路径 | 说明 |
+|------|---------|---------|------|
+| **TRAE** | ✅ 原生支持 | 路径 A（SVG 管线） | 深度集成 ppt-master，质量最高 |
+| **WorkBuddy** | ✅ 支持 | 路径 B（直接生成） | gen_pptx.py 绕过 SVG，python-pptx 直接构建 |
+| **豆包 / Qwen** | ✅ 支持 | 路径 B（直接生成） | 同 WorkBuddy，仅需 Python + python-pptx |
+| **Claude Code** | ✅ 支持 | 路径 B（直接生成） | 克隆到 skills 目录即可 |
+| **Cursor** | ✅ 支持 | 路径 B（直接生成） | 克隆到 skills 目录即可 |
+| **Codex** | ✅ 支持 | 路径 B（直接生成） | 有文件系统和执行能力即可 |
+| **普通 Chatbot** | ⚠️ 不推荐 | 不适用 | 无文件系统时无法生成完整 PPT 文件 |
+
+> **双轨生成**：路径 A 通过 SVG→DrawingML 管线生成（TRAE 专属），路径 B 通过 `gen_pptx.py` 用 python-pptx 直接构建。**非 TRAE 环境自动走路径 B**，保证跨平台一致的 300-500 个原生可编辑对象、完整配图嵌入、speaker notes。
 
 ---
 
 ## 工作流程
+
+### TRAE 环境（路径 A）
 
 ```
 第 1 步：确认需求
@@ -197,10 +202,28 @@ P17  Q&A / 致谢
 第 3 步：生成大纲
          ↓ AI 给出汇报目录，你回复"确认"或调整
 第 4 步：生成 PPT
-         ↓ AI 逐页制作 PPT，嵌入原图，生成演讲稿
+         ↓ AI 逐页手写 SVG，嵌入原图，导出为原生 PPTX
 第 5 步：交付质检
          ↓ 自动检查：可编辑性 / 图片完整性 / 内容一致性
 ```
+
+### 其他 AI 环境（路径 B，WorkBuddy / Claude / Cursor / Qwen）
+
+```
+第 1 步：确认需求
+         ↓ 你告诉 AI：页数、语言、是否需要演讲稿
+第 2 步：解析文献
+         ↓ AI 读取 PDF，提取文字内容和实验图表
+第 3 步：生成大纲
+         ↓ AI 给出汇报目录，你回复"确认"或调整
+第 4 步：生成 PPT（自动化）
+         ↓ AI 生成 slides.json → gen_pptx.py 自动构建高质量 PPTX
+         ↓ 无需手写 SVG，脚本自动处理布局、装饰、配图嵌入
+第 5 步：交付质检
+         ↓ 自动检查：可编辑性 / 图片完整性 / 内容一致性
+```
+
+> 路径 B 的核心区别在第 4 步：AI 只需要生成结构化 JSON 数据（slides.json），复杂的视觉布局由 `gen_pptx.py` 脚本自动完成。这确保了跨平台一致的输出质量。
 
 ---
 

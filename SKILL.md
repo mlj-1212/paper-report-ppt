@@ -7,13 +7,17 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 
 把研究生文献（PDF）按文章脉络生成用于组会汇报的**可编辑** PPTX。文献配图**原样嵌入不改**，模板可由使用者提供。
 
-本 skill 是**场景编排层**，复用 `ppt-master` 的 Generate PPTX 路由完成 PPTX 生成，自身只负责文献解析、组会脉络结构化、配图契约适配与模板引导。
+本 skill 是**场景编排层**，提供**双轨生成路径**：
+- **路径 A（SVG 管线）**：通过 ppt-master 的 SVG → DrawingML 管线生成，质量最高，适合 TRAE 等深度集成环境
+- **路径 B（直接生成）**：通过 `scripts/gen_pptx.py` 用 python-pptx 直接构建 DrawingML，**所有 AI 环境通用**，质量与路径 A 接近
+
+> **重要**：路径 B 是为 WorkBuddy / Claude Code / Cursor / Qwen 等非 TRAE 环境设计的。这些环境的 AI 通常无法可靠地逐页手写符合 ppt-master 严格规范的 SVG 文件，但完全有能力生成 JSON 结构化数据交给脚本处理。**所有 AI 环境优先使用路径 B**，TRAE 环境可选择路径 A。
 
 ---
 
 ## 协作引擎与路径解析
 
-本 skill 复用 `ppt-master` 的 Generate PPTX 路由完成 PPTX 生成，自身只负责文献解析、组会脉络结构化、配图契约适配与模板引导。`ppt-master` 已**内置**在本 skill 的 `vendor/ppt-master/` 目录中，用户无需单独安装。
+本 skill 提供双轨生成路径。`ppt-master` 已**内置**在本 skill 的 `vendor/ppt-master/` 目录中，用户无需单独安装。
 
 ### `ppt-master` 定位
 
@@ -76,35 +80,40 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 ### S0 — 意图确认与需求收集
 
 - **输入**：用户对话 + PDF 路径（+ 可选模板 PPTX）
-- **输出**：需求摘要（场景 / 页数 / 语言 / 模板 / 侧重 + 矢量图处理决策）+ 已解析的 `${PPT_MASTER_DIR}`
+- **输出**：需求摘要（场景 / 页数 / 语言 / 模板 / 侧重 + 矢量图处理决策）+ 已解析的 `${PPT_MASTER_DIR}` + **生成路径决策**
 - **脚本**：`scripts/install_check.py`（可选，用于环境自检）
-- **门禁**：⛔ ① `ppt-master` 路径已解析 ② 用户确认需求摘要后进入 S1
+- **门禁**：⛔ ① 环境自检通过 ② 用户确认需求摘要后进入 S1
 
-#### S0.1 协作引擎解析（首要步骤，不阻断 skill 加载）
+#### S0.1 环境自检与生成路径决策（首要步骤）
 
-进入 S0 后**第一件事**是按"`${PPT_MASTER_DIR}` 路径解析"优先级列表定位 `ppt-master`：
+进入 S0 后**第一件事**是运行环境自检：
 
 ```bash
-# 可选：运行自检脚本，输出解析结果与缺失项建议
-python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py
+python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py --json
 ```
 
-脚本行为：
-- **任何环境**：优先检测 `vendor/ppt-master`（内置版本），找到即就绪
-- **TRAE 环境**：若 vendor 版本不可用，回退检测 TRAE 内置 `ppt-master`
-- **其他 AI 环境**：vendor 版本即可满足，无需额外安装
+根据自检结果，**自动选择生成路径**：
+
+| 检测条件 | 生成路径 | 说明 |
+|---|---|---|
+| 非 TRAE 环境（WorkBuddy / Claude / Cursor / Qwen 等） | **路径 B（直接生成）** | 这些环境无法可靠执行 SVG 管线 |
+| TRAE 环境 + 用户明确指定 | 路径 A 或路径 B | 由用户选择 |
+| TRAE 环境 + 用户未指定 | **路径 A（SVG 管线）** | TRAE 深度集成 ppt-master，质量最高 |
+
+> **核心原则：非 TRAE 环境一律走路径 B。** 路径 B 通过 `scripts/gen_pptx.py` 用 python-pptx 直接生成 PPTX，不依赖 SVG 手写能力，所有有文件系统的 AI 环境均可使用。
+
+`install_check.py` 行为：
+- **任何环境**：检测 Python + python-pptx + PyMuPDF（路径 B 最小依赖）
+- **TRAE 环境**：额外检测 ppt-master（路径 A 需要的 SVG 管线脚本）
 - **纯对话环境**：提示本 skill 需要文件系统支持，礼貌退出
-
-> **关键原则**：`ppt-master` 已内置在 `vendor/ppt-master/` 目录中，用户克隆本 skill 后即可使用，**无需单独安装**。脚本退出码：0=就绪，2=需用户操作，3=环境不支持。
-
-解析成功后，把路径写入 `${PPT_MASTER_DIR}` 供后续 S1–S5 使用。
+- 脚本退出码：0=就绪，2=需用户操作，3=环境不支持
 
 #### S0.2 需求收集
 
 **收集项**：
 1. PDF 路径
 2. 汇报场景与目标页数
-3. 是否提供模板 PPTX
+3. 是否提供模板 PPTX（⚠️ 路径 B 暂不支持用户模板，自动回退 free design）
 4. 汇报语言
 5. 脉络侧重（IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比）
 6. PDF 中矢量图处理方式（默认不提取；如需保留接受栅格化或尝试 EMF）
@@ -216,7 +225,18 @@ python ${PPT_MASTER_DIR}/scripts/pptx_template_import.py "<user_template.pptx>"
 
 ---
 
-### S4 — ppt-master Generate PPTX 编排
+### S4 — PPTX 生成
+
+S0 的路径决策决定 S4 的执行路线：
+
+- **路径 A（SVG 管线）** → S4-A：ppt-master 完整管线（7 步）
+- **路径 B（直接生成）** → S4-B：gen_pptx.py 单脚本生成
+
+---
+
+#### S4-A — 路径 A：ppt-master SVG 管线（TRAE 环境默认）
+
+仅当 S0 决策为路径 A 时执行。
 
 - **输入**：`<stem>.md` + `<stem>_files/` + `outline.md` + 模板决策
 - **输出**：`exports/<project>_<timestamp>.pptx` + `validation/<project>_<timestamp>.report.json`
@@ -442,6 +462,134 @@ python ${PPT_MASTER_DIR}/scripts/svg_to_pptx.py <project_path>
 
 ---
 
+#### S4-B — 路径 B：gen_pptx.py 直接生成（所有非 TRAE 环境默认）
+
+仅当 S0 决策为路径 B 时执行。**这是 WorkBuddy / Claude Code / Cursor / Qwen 等环境的推荐路径。**
+
+- **输入**：S2 的 `outline.md` + `image_manifest_filtered.json` + 配图文件
+- **输出**：`<work_dir>/output.pptx`（可编辑 PPTX）
+- **门禁**：✅ PPTX 文件存在且可打开
+- **前置依赖**：`pip install python-pptx`（若未安装）
+
+##### Step B1 — 生成 slides.json
+
+**AI 的工作**：根据 S2 的 `outline.md`，逐页生成结构化 JSON 数据，写入 `<work_dir>/slides.json`。
+
+这是路径 B 中 **AI 唯一需要做的创造性工作**——把 outline 中每页的文字内容、配图分配、speaker notes 组织为 JSON 格式。不需要手写 SVG，不需要理解 DrawingML 规范。
+
+**slides.json 格式**：
+
+```json
+[
+  {
+    "page_num": 1,
+    "page_type": "cover",
+    "title": "文献精读汇报：RSV感染诱导去泛素化酶UBP16上调稳定SHMT1促进病毒感染",
+    "subtitle": "Wang et al., Stress Biology, 2025",
+    "bullets": [],
+    "image_path": null,
+    "image_caption": null,
+    "notes": "今天汇报的文献是2025年发表在Stress Biology上的研究..."
+  },
+  {
+    "page_num": 2,
+    "page_type": "toc",
+    "title": "汇报提纲",
+    "sections": ["研究背景", "科学问题", "方法总览", "主要结果", "讨论与创新", "结论与展望"],
+    "bullets": [],
+    "image_path": null,
+    "image_caption": null,
+    "notes": "本次汇报分为六个部分..."
+  },
+  {
+    "page_num": 3,
+    "page_type": "content",
+    "title": "研究背景：RSV与植物防御",
+    "bullets": [
+      "水稻条纹病毒（RSV）是最具破坏性的水稻病毒之一",
+      "植物泛素化-去泛素化通路在抗病毒防御中发挥关键作用",
+      "去泛素化酶（DUBs）移除泛素链，稳定靶蛋白",
+      "已有研究表明病毒可劫持宿主泛素化通路促进感染"
+    ],
+    "image_path": null,
+    "image_caption": null,
+    "highlights": [
+      {"title": "知识缺口", "content": "植物去泛素化酶是否以及如何调控病毒感染尚不清楚"}
+    ],
+    "notes": "首先介绍研究背景..."
+  },
+  {
+    "page_num": 7,
+    "page_type": "figure",
+    "title": "系统筛选：NbUBP16响应RSV感染",
+    "bullets": [],
+    "image_path": "../s44154-025-00265-2_files/88bb1143-ef92-4902-9283-5c3da02d7305_b4e6069d-486c-4603-95e2-b0db7e55bffd_s44154-025-00265-2_p3_0.jpeg",
+    "image_caption": "Figure 1: NbUBP16 responds to RSV infection.",
+    "notes": "请看这张图，Figure 1展示了通过转录组分析筛选出的去泛素化酶..."
+  },
+  {
+    "page_num": 17,
+    "page_type": "qa",
+    "title": "感谢聆听",
+    "key_message": "Q&A / 欢迎提问",
+    "bullets": [],
+    "image_path": null,
+    "image_caption": null,
+    "notes": "以上就是本次汇报的全部内容..."
+  }
+]
+```
+
+**page_type 取值**：
+
+| page_type | 用途 | 必需字段 | 可选字段 |
+|---|---|---|---|
+| `cover` | 封面页 | `title`, `subtitle` | `notes` |
+| `toc` | 目录页 | `title`, `sections`(数组) | `notes` |
+| `section` | 章节分隔页 | `title` | `notes` |
+| `content` | 内容页 | `title`, `bullets`(数组) | `highlights`, `notes` |
+| `figure` | 配图页 | `title`, `image_path` | `image_caption`, `bullets`, `notes` |
+| `model` | 工作模型页 | `title`, `image_path` | `image_caption`, `notes` |
+| `conclusion` | 结论页 | `title`, `key_message` | `bullets`, `notes` |
+| `qa` | 致谢页 | `title` | `key_message`, `notes` |
+
+**AI 生成 slides.json 的要点**：
+1. 从 `outline.md` 提取每页的标题和关键论点，转化为 `bullets`
+2. 从 `image_manifest_filtered.json` 获取配图路径，填入 `image_path`（相对路径或绝对路径均可）
+3. 为每页生成 50-100 字的 `notes`（speaker notes），供演讲时参考
+4. `image_path` 必须是实际存在的文件路径（从 `<stem>_files/` 中提取的原始图片）
+5. JSON 必须合法（无注释、无尾逗号、字符串正确转义）
+
+##### Step B2 — 执行 gen_pptx.py 生成 PPTX
+
+```bash
+pip install python-pptx   # 若未安装
+python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
+  --input <work_dir>/slides.json \
+  --images-dir <work_dir>/<stem>_files/ \
+  --output <work_dir>/output.pptx \
+  --theme academic
+```
+
+**参数说明**：
+- `--input`：Step B1 生成的 slides.json 路径
+- `--images-dir`：配图文件所在目录（`<stem>_files/`）
+- `--output`：输出 PPTX 路径
+- `--theme`：视觉主题，`academic`（默认，专业学术风）或 `minimal`（简洁风）
+
+**脚本行为**：
+- 读取 slides.json，逐页生成 python-pptx 原生 DrawingML 对象
+- 每页包含：顶部装饰条 + 标题栏 + 内容区 + 底部页码 + 角落装饰形状（15-35 个形状/页）
+- 配图以 `preserveAspectRatio` 方式完整嵌入，不裁剪
+- speaker notes 写入每页备注栏
+- 总输出约 300-500 个原生可编辑对象（接近路径 A 的 466 个）
+
+##### Step B3 — 演讲稿生成（与 S4-A Step 6.5 相同）
+
+路径 B 的演讲稿生成与路径 A 完全一致，使用 docx-js 生成独立 DOCX 文稿。参考 S4-A Step 6.5 的详细规范。
+
+---
+
 ### S5 — 交付与质检
 
 - **输入**：PPTX + report.json
@@ -474,9 +622,11 @@ python ${PPT_MASTER_DIR}/scripts/svg_to_pptx.py <project_path>
 
 ### 2. 可编辑 PPTX 保证
 
-- `svg_to_pptx.py` 把 SVG 映射为 DrawingML 原生对象：文本→text body、形状→autoshape、图片→pic，**非整页图片插入**
-- `design_spec.md` 的 `pptx_structure.mode` 默认 `flat`，保证 Slide-local 可编辑
-- 导出后用 python-pptx 抽检：文本框可改文字、形状可改属性、图片可替换
+**路径 A**：`svg_to_pptx.py` 把 SVG 映射为 DrawingML 原生对象：文本→text body、形状→autoshape、图片→pic，**非整页图片插入**。
+
+**路径 B**：`gen_pptx.py` 用 python-pptx 直接构建 DrawingML 原生对象：文本→text frame、形状→autoshape、图片→picture，**非整页图片插入**。每页 15-35 个原生形状，总计 300-500 个。
+
+两条路径均保证：所有文本框可改文字、形状可改属性、图片可替换。导出后用 python-pptx 抽检验证。
 
 ### 3. 模板支持边界
 
@@ -536,3 +686,5 @@ python ${PPT_MASTER_DIR}/scripts/svg_to_pptx.py <project_path>
 6. **组会脉络模板预设**：✅ 已实现。预置 4 种脉络模板（IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比），用户在 S0 一键选择，S2 自动套用对应页序列。详细规则见 `references/outline-templates.md`。
 
 7. **增量更新**：文献更新（新版本 PDF）后，按 image_manifest.json 的 source_sha256 比对，只重新生成配图变化的页与受影响章节页，而非全量重做。
+
+8. **双轨生成路径**：✅ 已实现。路径 A（SVG 管线）适合 TRAE 等深度集成环境，路径 B（gen_pptx.py 直接生成）适合所有 AI 环境。非 TRAE 环境自动走路径 B，保证跨平台一致的高质量输出。
