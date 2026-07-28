@@ -62,7 +62,7 @@ THEMES = {
         "header_area_height_inch": 1.1,
         "margin_inch": 0.8,
         # 装饰开关
-        "decorations": True,
+        "decorations": False,
     },
     "minimal": {
         "background": RGBColor(0xFF, 0xFF, 0xFF),
