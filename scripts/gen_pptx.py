@@ -562,15 +562,15 @@ class SlideBuilder:
             fill_color=t["section_bg"],
         )
 
-        # 章节编号
-        page_num_text = slide_data.get("page_num", page_num)
+        # 章节编号（优先用 section_no，回退到 page_num）
+        section_no = slide_data.get("section_no", page_num)
         _add_textbox(
             slide,
             left=Inches(3.0),
             top=Inches(2.9),
             width=Inches(7.33),
             height=Inches(0.7),
-            text=f"Section {page_num_text}",
+            text=f"Section {section_no}",
             font_name=t["font_body"],
             size_pt=18,
             color=t["accent"],
@@ -1368,6 +1368,15 @@ def main():
         for err in errors:
             print(err)
         sys.exit(1)
+
+    # ── 预处理：为 section 页分配章节序号 ──
+    section_counter = 0
+    for slide_data in slides_data:
+        if slide_data.get("page_type") == "section":
+            section_counter += 1
+            # 如果 slides.json 未提供 section_no，自动分配
+            if "section_no" not in slide_data:
+                slide_data["section_no"] = section_counter
 
     # ── 构建演示文稿 ──
     builder = SlideBuilder(theme_name=args.theme)
