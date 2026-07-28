@@ -96,11 +96,11 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py --json
 
 | 检测条件 | 生成路径 | 说明 |
 |---|---|---|
-| 非 TRAE 环境（WorkBuddy / Claude / Cursor / Qwen 等） | **路径 B（直接生成）** | 这些环境无法可靠执行 SVG 管线 |
+| TRAE 环境（通过工作目录检测）+ 用户未指定 | **路径 A（SVG 管线）** | TRAE 深度集成 ppt-master，质量最高 |
 | TRAE 环境 + 用户明确指定 | 路径 A 或路径 B | 由用户选择 |
-| TRAE 环境 + 用户未指定 | **路径 A（SVG 管线）** | TRAE 深度集成 ppt-master，质量最高 |
+| 非 TRAE 环境（WorkBuddy / Claude / Cursor / Qwen 等） | **路径 B（直接生成）** | 这些环境无法可靠执行 SVG 管线 |
 
-> **核心原则：非 TRAE 环境一律走路径 B。** 路径 B 通过 `scripts/gen_pptx.py` 用 python-pptx 直接生成 PPTX，不依赖 SVG 手写能力，所有有文件系统的 AI 环境均可使用。
+> **核心原则**：`install_check.py` 通过**当前工作目录**判断正在运行的 AI 环境（而非机器上装了什么），确保同一台机器上 TRAE 和 WorkBuddy 共存时能正确识别。非 TRAE 环境一律走路径 B。路径 B 通过 `scripts/gen_pptx.py` 用 python-pptx 直接生成 PPTX，不依赖 SVG 手写能力，所有有文件系统的 AI 环境均可使用。
 
 `install_check.py` 行为：
 - **任何环境**：检测 Python + python-pptx + PyMuPDF（路径 B 最小依赖）

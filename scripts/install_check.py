@@ -117,31 +117,64 @@ def detect_environment():
 
     检测优先级：
     1. 环境变量 AI_ENV（用户可显式指定）
-    2. WorkBuddy（检测 .workbuddy 目录或 WORKBUDDY 环境变量）
-    3. TRAE（检测 .trae-cn 目录，但需排除 WorkBuddy 嵌套 TRAE 的情况）
+    2. 进程特征检测（最可靠）：
+       - TRAE: 当前工作目录在 TRAE SOLO CN / TRAE 工作区内
+       - WorkBuddy: 当前工作目录在 .workbuddy 目录下
+    3. 目录存在性检测（回退）：
+       - TRAE: .trae-cn 目录存在
+       - WorkBuddy: .workbuddy 目录存在
     4. Claude Code / Cursor / Codex
     5. unknown
+
+    核心原则：通过当前工作目录判断正在运行的 AI，
+    而非机器上安装了什么。一台机器可能同时安装多个 AI 工具。
     """
     home = Path.home()
+    cwd = Path.cwd()
 
     # 0. 显式环境变量优先
     env_explicit = os.environ.get("AI_ENV", "").strip().lower()
     if env_explicit:
         return env_explicit
 
-    # 1. WorkBuddy 检测（优先于 TRAE，因为 WorkBuddy 可能运行在装了 TRAE 的机器上）
+    # 1. 进程特征检测（最可靠）—— 通过当前工作目录判断
+    cwd_str = str(cwd).lower()
+    home_str = str(home).lower()
+
+    # TRAE 工作目录特征：包含 "trae solo cn" 或在 trae-cn/work 下
+    if "trae solo cn" in cwd_str or ".trae-cn" in cwd_str:
+        return "trae"
+
+    # WorkBuddy 工作目录特征：包含 .workbuddy
+    if ".workbuddy" in cwd_str:
+        return "workbuddy"
+
+    # 2. 目录存在性检测（回退）—— 当无法通过 CWD 判断时
+    # 检测 TRAE 特征目录（APPDATA 下的 TRAE SOLO CN）
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA", "")
+        if appdata and "TRAE" in appdata:
+            trae_appdata = Path(appdata) / "TRAE SOLO CN"
+            if trae_appdata.exists():
+                # 进一步检查是否在 TRAE 工作目录中运行
+                try:
+                    cwd.relative_to(trae_appdata)
+                    return "trae"
+                except ValueError:
+                    pass  # 不在 TRAE AppData 目录下运行，继续检测
+
+    # 3. .trae-cn 目录存在 → TRAE（即使机器上也装了 WorkBuddy）
+    # 因为 install_check.py 是由 AI 调用的，哪个 AI 在运行就返回哪个
+    if (home / ".trae-cn").exists() or (home / ".trae").exists():
+        # 如果当前 CWD 不在 .workbuddy 下，优先返回 TRAE
+        if ".workbuddy" not in cwd_str:
+            return "trae"
+
+    # 4. WorkBuddy 检测（仅在 TRAE 不存在或不在 TRAE 环境时）
     if (home / ".workbuddy").exists() or os.environ.get("WORKBUDDY_HOME"):
         return "workbuddy"
 
-    # 2. TRAE 检测
-    if (home / ".trae-cn").exists() or (home / ".trae").exists():
-        return "trae"
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", "")
-        if "TRAE" in appdata and Path(appdata).exists():
-            if (Path(appdata) / "TRAE SOLO CN").exists():
-                return "trae"
-
+    # 5. 其他环境
     if (home / ".claude").exists():
         return "claude-code"
     if (home / ".cursor").exists():
