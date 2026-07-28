@@ -44,6 +44,10 @@ THEMES = {
         "border_gray": RGBColor(0xBD, 0xC3, 0xC7),        # #BDC3C7 图片边框
         "decor_corner": RGBColor(0xE8, 0xF4, 0xFD),       # 角落装饰（50%透明度通过代码控制）
         "section_bg": RGBColor(0x34, 0x98, 0xDB),          # 章节分隔页背景带
+        "title_band": RGBColor(0x1A, 0x52, 0x76),          # #1A5276 深蓝色标题带
+        "conclusion_bg": RGBColor(0xEB, 0xF5, 0xFB),       # #EBF5FB 浅蓝色结论框背景
+        "keyword_red": RGBColor(0xC0, 0x39, 0x2B),         # #C0392B 关键词红色
+        "sub_title_bg": RGBColor(0xF0, 0xF7, 0xFC),        # #F0F7FC 小标题浅蓝背景
         # 字体
         "font_title": "Microsoft YaHei",
         "font_body": "Microsoft YaHei",
@@ -305,6 +309,181 @@ class SlideBuilder:
         )
         _set_shape_opacity(c2, 70)
 
+    # ── TRAE 风格辅助方法 ────────────────────────────────
+
+    # 学术关键词列表（用于 _add_rich_textbox 智能高亮）
+    ACADEMIC_KEYWORDS = [
+        "增加", "减少", "升高", "降低", "促进", "抑制", "上调", "下调",
+        "增强", "减弱", "正向调控", "负向调控", "加重", "减轻",
+        "稳定", "降解", "激活", "破坏",
+    ]
+
+    def _add_title_header(self, slide, title_text, theme, kicker=None):
+        """在页面顶部画一个全宽深蓝色矩形标题带（替代原 _add_top_bar + 单独标题）。
+
+        - 高 0.8 英寸，颜色用 title_band
+        - 标题文字白色、加粗、左对齐（左边距 0.5 英寸，垂直居中）
+        - 若提供 kicker，在右上角画一个浅色小标签（圆角矩形，白字）
+        """
+        band_height = Inches(0.8)
+        # 全宽深蓝色矩形条
+        _add_rect(
+            slide,
+            left=Emu(0), top=Emu(0),
+            width=self.sw, height=band_height,
+            fill_color=theme["title_band"],
+        )
+        # 标题文字（白色、加粗、左对齐、垂直居中）
+        title_box = _add_textbox(
+            slide,
+            left=Inches(0.5),
+            top=Emu(0),
+            width=self.sw - Inches(1.0),
+            height=band_height,
+            text=title_text,
+            font_name=theme["font_title"],
+            size_pt=theme["title_size_pt"],
+            color=theme["white"],
+            bold=True,
+            alignment=PP_ALIGN.LEFT,
+        )
+        # 垂直居中
+        try:
+            title_box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+        except Exception:
+            pass
+
+        # 右上角 kicker 小标签
+        if kicker:
+            kicker_w = Inches(1.8)
+            kicker_h = Inches(0.35)
+            kicker_left = self.sw - kicker_w - Inches(0.4)
+            kicker_top = (band_height - kicker_h) // 2
+            k_shape = _add_rounded_rect(
+                slide,
+                left=kicker_left,
+                top=kicker_top,
+                width=kicker_w,
+                height=kicker_h,
+                fill_color=theme["accent"],
+            )
+            k_tf = k_shape.text_frame
+            k_tf.word_wrap = False
+            try:
+                k_tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            except Exception:
+                pass
+            k_p = k_tf.paragraphs[0]
+            k_p.alignment = PP_ALIGN.CENTER
+            k_run = k_p.add_run()
+            k_run.text = kicker
+            _set_font(k_run, theme["font_body"], 11, bold=True, color=theme["white"])
+
+    def _add_conclusion_box(self, slide, left, top, width, text, theme):
+        """画一个浅蓝色圆角矩形结论框，左侧带蓝色竖线装饰。
+
+        - conclusion_bg 填充，无边框
+        - 左侧 accent 色竖线（宽 0.06 英寸）
+        - 文字为 header_bar 色（深蓝），加粗，size 13pt，前加"结论："前缀（加粗）
+        """
+        box_height = Inches(0.7)
+        # 浅蓝色圆角矩形背景
+        _add_rounded_rect(
+            slide,
+            left=left,
+            top=top,
+            width=width,
+            height=box_height,
+            fill_color=theme["conclusion_bg"],
+            line_color=None,
+        )
+        # 左侧蓝色竖线装饰
+        _add_rect(
+            slide,
+            left=left,
+            top=top,
+            width=Inches(0.06),
+            height=box_height,
+            fill_color=theme["accent"],
+        )
+        # 文字框（"结论："前缀加粗 + 正文）
+        txBox = slide.shapes.add_textbox(
+            left + Inches(0.25),
+            top,
+            width - Inches(0.4),
+            box_height,
+        )
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        try:
+            tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        except Exception:
+            pass
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        # "结论：" 前缀
+        prefix_run = p.add_run()
+        prefix_run.text = "结论："
+        _set_font(prefix_run, theme["font_body"], 13, bold=True,
+                  color=theme["header_bar"])
+        # 正文（支持关键词高亮）
+        self._add_keyword_runs(p, text, theme["font_body"], 13,
+                               theme["header_bar"], theme)
+        return box_height
+
+    def _add_keyword_runs(self, paragraph, text, font_name, size_pt,
+                          default_color, theme, bold=False):
+        """将文本按学术关键词切分，添加多个 run（关键词标红加粗）。
+
+        关键词用 keyword_red + bold，其余用 default_color。
+        """
+        keywords = self.ACADEMIC_KEYWORDS
+        # 按出现位置切分文本
+        remaining = text
+        while remaining:
+            # 找最早出现的关键词
+            earliest_pos = -1
+            earliest_kw = None
+            for kw in keywords:
+                pos = remaining.find(kw)
+                if pos != -1 and (earliest_pos == -1 or pos < earliest_pos):
+                    earliest_pos = pos
+                    earliest_kw = kw
+            if earliest_pos == -1:
+                # 没有关键词了，输出剩余文本
+                run = paragraph.add_run()
+                run.text = remaining
+                _set_font(run, font_name, size_pt, bold=bold, color=default_color)
+                break
+            # 输出关键词前的普通文本
+            if earliest_pos > 0:
+                normal_text = remaining[:earliest_pos]
+                run = paragraph.add_run()
+                run.text = normal_text
+                _set_font(run, font_name, size_pt, bold=bold, color=default_color)
+            # 输出关键词（标红加粗）
+            kw_run = paragraph.add_run()
+            kw_run.text = earliest_kw
+            _set_font(kw_run, font_name, size_pt, bold=True,
+                      color=theme["keyword_red"])
+            # 继续处理剩余文本
+            remaining = remaining[earliest_pos + len(earliest_kw):]
+
+    def _add_rich_textbox(self, slide, left, top, width, height, text,
+                          font_name, size_pt, color, theme, bold=False):
+        """智能关键词高亮文本框：检测学术关键词并标红加粗。
+
+        关键词部分用 keyword_red + bold，其余用正常 color。
+        用 add_run 机制，处理一段文本中多个关键词的情况。
+        """
+        txBox = slide.shapes.add_textbox(left, top, width, height)
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        self._add_keyword_runs(p, text, font_name, size_pt, color, theme, bold=bold)
+        return txBox
+
     # ── 各页面类型构建方法 ────────────────────────────────
 
     def build_cover(self, prs, slide_data, page_num):
@@ -318,8 +497,13 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        # 顶部装饰条
-        self._add_top_bar(slide)
+        # 顶部装饰条（使用 title_band 色）
+        _add_rect(
+            slide,
+            left=Emu(0), top=Emu(0),
+            width=self.sw, height=Inches(t["top_bar_height_inch"]),
+            fill_color=t["title_band"],
+        )
 
         # 装饰: 左上角圆角矩形
         dr1 = _add_rounded_rect(
@@ -540,7 +724,13 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        self._add_top_bar(slide)
+        # 顶部 title_band 色带（替代原 header_bar 细条）
+        _add_rect(
+            slide,
+            left=Emu(0), top=Emu(0),
+            width=self.sw, height=Inches(0.4),
+            fill_color=t["title_band"],
+        )
 
         # 上方装饰线
         _add_rect(
@@ -559,7 +749,7 @@ class SlideBuilder:
             top=Inches(2.5),
             width=Inches(7.33),
             height=Inches(0.12),
-            fill_color=t["section_bg"],
+            fill_color=t["title_band"],
         )
 
         # 章节编号（优先用 section_no，回退到 page_num）
@@ -639,57 +829,51 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        # 顶部装饰条
-        self._add_top_bar(slide)
+        # 标题带（替代原 _add_top_bar + 单独标题）
+        kicker = slide_data.get("kicker")
+        self._add_title_header(slide, slide_data.get("title", ""), t, kicker=kicker)
 
-        # 标题区域: 彩色条纹 + 标题文字
-        header_y = Inches(t["top_bar_height_inch"])
-        _add_rect(
-            slide,
-            left=Emu(0),
-            top=header_y,
-            width=self.sw,
-            height=Inches(t["header_area_height_inch"]) - header_y,
-            fill_color=t["white"],
-        )
-        # 标题区左侧蓝色强调线
-        _add_rect(
-            slide,
-            left=Emu(0),
-            top=header_y,
-            width=Inches(0.08),
-            height=Inches(t["header_area_height_inch"]) - header_y,
-            fill_color=t["accent"],
-        )
-
-        # 标题文字
-        _add_textbox(
-            slide,
-            left=margin,
-            top=header_y + Inches(0.15),
-            width=self.sw - margin * 2,
-            height=Inches(0.6),
-            text=slide_data.get("title", ""),
-            font_name=t["font_title"],
-            size_pt=t["title_size_pt"],
-            color=t["header_bar"],
-            bold=True,
-        )
-
-        # 标题区底部细线分隔
-        header_bottom = Inches(t["header_area_height_inch"])
-        _add_rect(
-            slide,
-            left=margin,
-            top=header_bottom,
-            width=self.sw - margin * 2,
-            height=Inches(0.015),
-            fill_color=t["border_gray"],
-        )
+        # 小标题（如果有 sub_title）
+        sub_y = Inches(0.92)
+        sub_title = slide_data.get("sub_title")
+        if sub_title:
+            # 蓝色竖线装饰
+            _add_rect(
+                slide,
+                left=margin,
+                top=sub_y + Inches(0.02),
+                width=Inches(0.06),
+                height=Inches(0.32),
+                fill_color=t["accent"],
+            )
+            # 小标题浅蓝背景
+            _add_rounded_rect(
+                slide,
+                left=margin + Inches(0.15),
+                top=sub_y,
+                width=self.sw - margin * 2 - Inches(0.15),
+                height=Inches(0.36),
+                fill_color=t["sub_title_bg"],
+                line_color=None,
+            )
+            _add_textbox(
+                slide,
+                left=margin + Inches(0.3),
+                top=sub_y + Inches(0.02),
+                width=self.sw - margin * 2 - Inches(0.45),
+                height=Inches(0.32),
+                text=sub_title,
+                font_name=t["font_body"],
+                size_pt=14,
+                color=t["title_band"],
+                bold=True,
+            )
+            body_top = sub_y + Inches(0.52)
+        else:
+            body_top = Inches(1.15)
 
         # 要点列表
         bullets = slide_data.get("bullets", [])
-        body_top = header_bottom + Inches(0.3)
         bullet_left = margin + Inches(0.3)
         bullet_width = self.sw - margin * 2 - Inches(0.6)
         bullet_height = Inches(0.55)
@@ -707,8 +891,8 @@ class SlideBuilder:
                 fill_color=t["accent"],
             )
 
-            # 要点文本框（独立文本框，可编辑）
-            _add_textbox(
+            # 要点文本框（支持关键词高亮）
+            self._add_rich_textbox(
                 slide,
                 left=bullet_left,
                 top=y,
@@ -718,12 +902,13 @@ class SlideBuilder:
                 font_name=t["font_body"],
                 size_pt=t["body_size_pt"],
                 color=t["body_text"],
+                theme=t,
             )
 
         # 高亮框
         highlights = slide_data.get("highlights", [])
+        hl_y = body_top + len(bullets) * Inches(0.7) + Inches(0.2)
         if highlights:
-            hl_y = body_top + len(bullets) * Inches(0.7) + Inches(0.3)
             for j, hl in enumerate(highlights):
                 hl_box = _add_rounded_rect(
                     slide,
@@ -761,6 +946,19 @@ class SlideBuilder:
                     color=t["body_text"],
                 )
 
+        # 结论框（如果有 conclusion 字段）
+        conclusion = slide_data.get("conclusion")
+        if conclusion:
+            concl_top = self.sh - Inches(1.5)
+            self._add_conclusion_box(
+                slide,
+                left=margin + Inches(0.3),
+                top=concl_top,
+                width=self.sw - margin * 2 - Inches(0.6),
+                text=conclusion,
+                theme=t,
+            )
+
         self._add_corner_decorations(slide)
         self._add_bottom_bar(slide, page_num)
         _add_notes(slide, slide_data.get("notes", ""))
@@ -775,31 +973,8 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        self._add_top_bar(slide)
-
-        # 标题
-        _add_textbox(
-            slide,
-            left=Inches(0.8),
-            top=Inches(0.5),
-            width=self.sw - Inches(1.6),
-            height=Inches(0.6),
-            text=slide_data.get("title", "图表"),
-            font_name=t["font_title"],
-            size_pt=t["title_size_pt"],
-            color=t["header_bar"],
-            bold=True,
-        )
-
-        # 标题下分隔线
-        _add_rect(
-            slide,
-            left=Inches(0.8),
-            top=Inches(1.15),
-            width=self.sw - Inches(1.6),
-            height=Inches(0.015),
-            fill_color=t["border_gray"],
-        )
+        self._add_title_header(slide, slide_data.get("title", "图表"), t,
+                               kicker=slide_data.get("kicker"))
 
         bullets = slide_data.get("bullets", [])
         has_bullets = bool(bullets)
@@ -811,8 +986,8 @@ class SlideBuilder:
             col_gap = Inches(0.4)
             text_left = Inches(0.8)
             img_left = text_left + text_col_width + col_gap
-            content_top = Inches(1.5)
-            content_height = self.sh - Inches(2.8)
+            content_top = Inches(1.15)
+            content_height = self.sh - Inches(2.5)
 
             # 左侧文字区：极淡背景 + 无边框，靠留白自然区分
             _add_rounded_rect(
@@ -824,18 +999,55 @@ class SlideBuilder:
                 fill_color=RGBColor(0xFC, 0xFC, 0xFC),  # 极浅灰，几乎看不见
                 line_color=None,
             )
-            # 左侧蓝色竖线装饰（仿TRAE风格，强调文字区）
-            _add_rect(
-                slide,
-                left=text_left + Inches(0.05),
-                top=content_top + Inches(0.2),
-                width=Inches(0.04),
-                height=Inches(0.6),
-                fill_color=t["accent"],
-            )
+
+            # 小标题（如果有 sub_title 或 analysis_title）
+            sub_title = slide_data.get("sub_title") or slide_data.get("analysis_title")
+            if sub_title:
+                # 蓝色竖线装饰
+                _add_rect(
+                    slide,
+                    left=text_left + Inches(0.05),
+                    top=content_top + Inches(0.1),
+                    width=Inches(0.06),
+                    height=Inches(0.32),
+                    fill_color=t["accent"],
+                )
+                # 小标题浅蓝背景
+                _add_rounded_rect(
+                    slide,
+                    left=text_left + Inches(0.18),
+                    top=content_top + Inches(0.08),
+                    width=text_col_width - Inches(0.25),
+                    height=Inches(0.36),
+                    fill_color=t["sub_title_bg"],
+                    line_color=None,
+                )
+                _add_textbox(
+                    slide,
+                    left=text_left + Inches(0.32),
+                    top=content_top + Inches(0.1),
+                    width=text_col_width - Inches(0.4),
+                    height=Inches(0.32),
+                    text=sub_title,
+                    font_name=t["font_body"],
+                    size_pt=14,
+                    color=t["title_band"],
+                    bold=True,
+                )
+                body_top = content_top + Inches(0.55)
+            else:
+                # 左侧蓝色竖线装饰（仿TRAE风格，强调文字区）
+                _add_rect(
+                    slide,
+                    left=text_left + Inches(0.05),
+                    top=content_top + Inches(0.2),
+                    width=Inches(0.04),
+                    height=Inches(0.6),
+                    fill_color=t["accent"],
+                )
+                body_top = content_top + Inches(0.2)
 
             # 要点列表
-            body_top = content_top + Inches(0.2)
             bullet_left = text_left + Inches(0.3)
             bullet_width = text_col_width - Inches(0.6)
             bullet_height = Inches(0.55)
@@ -852,8 +1064,8 @@ class SlideBuilder:
                     height=Inches(0.15),
                     fill_color=t["accent"],
                 )
-                # 要点文本
-                _add_textbox(
+                # 要点文本（支持关键词高亮）
+                self._add_rich_textbox(
                     slide,
                     left=bullet_left,
                     top=y,
@@ -863,6 +1075,22 @@ class SlideBuilder:
                     font_name=t["font_body"],
                     size_pt=t["body_size_pt"],
                     color=t["body_text"],
+                    theme=t,
+                )
+
+            # 结论框（如果有 conclusion 或 key_message）
+            conclusion = slide_data.get("conclusion")
+            if not conclusion:
+                conclusion = slide_data.get("key_message")
+            if conclusion:
+                concl_top = content_top + content_height - Inches(0.8)
+                self._add_conclusion_box(
+                    slide,
+                    left=text_left + Inches(0.1),
+                    top=concl_top,
+                    width=text_col_width - Inches(0.2),
+                    text=conclusion,
+                    theme=t,
                 )
 
             # 右侧图片区：极淡背景 + 无边框
@@ -904,9 +1132,9 @@ class SlideBuilder:
             # ── 无文字时：居中图片布局（原版） ──
             img_margin = Inches(1.0)
             img_area_left = img_margin
-            img_area_top = Inches(1.5)
+            img_area_top = Inches(1.15)
             img_area_width = self.sw - img_margin * 2
-            img_area_height = self.sh - Inches(2.8)
+            img_area_height = self.sh - Inches(2.5)
 
             _add_rounded_rect(
                 slide,
@@ -1036,88 +1264,86 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        self._add_top_bar(slide)
+        # 标题带（替代原 _add_top_bar + 单独标题）
+        self._add_title_header(slide, slide_data.get("title", "总结"), t,
+                               kicker=slide_data.get("kicker"))
 
-        # 标题
-        _add_textbox(
-            slide,
-            left=Inches(0.8),
-            top=Inches(0.55),
-            width=self.sw - Inches(1.6),
-            height=Inches(0.7),
-            text=slide_data.get("title", "总结"),
-            font_name=t["font_title"],
-            size_pt=t["title_size_pt"],
-            color=t["header_bar"],
-            bold=True,
-        )
-
-        # 分隔线
-        _add_rect(
-            slide,
-            left=Inches(0.8),
-            top=Inches(1.3),
-            width=self.sw - Inches(1.6),
-            height=Inches(0.015),
-            fill_color=t["border_gray"],
-        )
-
-        # 核心信息 — 居中彩色框内
+        # 核心信息 — 更大的结论框样式
         key_message = slide_data.get("key_message", slide_data.get("title", ""))
-        # 背景强调框
-        box_w = Inches(9.0)
-        box_h = Inches(1.6)
+        box_w = Inches(10.0)
+        box_h = Inches(1.8)
         box_left = (self.sw - box_w) // 2
-        box_top = Inches(2.0)
+        box_top = Inches(1.4)
+
+        # 浅蓝色圆角矩形背景
         _add_rounded_rect(
             slide,
             left=box_left,
             top=box_top,
             width=box_w,
             height=box_h,
-            fill_color=t["highlight"],
-            line_color=t["accent"],
-            line_width=2,
+            fill_color=t["conclusion_bg"],
+            line_color=None,
+        )
+        # 左侧蓝色竖线装饰（更粗）
+        _add_rect(
+            slide,
+            left=box_left,
+            top=box_top,
+            width=Inches(0.1),
+            height=box_h,
+            fill_color=t["accent"],
         )
 
-        # 核心信息文字
-        _add_textbox(
-            slide,
-            left=box_left + Inches(0.5),
-            top=box_top + Inches(0.2),
-            width=box_w - Inches(1.0),
-            height=box_h - Inches(0.4),
-            text=key_message,
-            font_name=t["font_title"],
-            size_pt=24,
-            color=t["header_bar"],
-            bold=True,
-            alignment=PP_ALIGN.CENTER,
+        # 核心信息文字（"结论：" 前缀 + 正文，更大字号，支持关键词高亮）
+        kbox = slide.shapes.add_textbox(
+            box_left + Inches(0.4),
+            box_top + Inches(0.15),
+            box_w - Inches(0.7),
+            box_h - Inches(0.3),
         )
+        ktf = kbox.text_frame
+        ktf.word_wrap = True
+        try:
+            ktf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        except Exception:
+            pass
+        kp = ktf.paragraphs[0]
+        kp.alignment = PP_ALIGN.LEFT
+        # "结论：" 前缀（加粗）
+        prefix_run = kp.add_run()
+        prefix_run.text = "结论："
+        _set_font(prefix_run, t["font_title"], 22, bold=True,
+                  color=t["header_bar"])
+        # 正文（更大字号 + 关键词高亮）
+        self._add_keyword_runs(kp, key_message, t["font_title"], 22,
+                               t["header_bar"], t, bold=True)
 
         # 支撑要点
         bullets = slide_data.get("bullets", [])
-        y = Inches(4.2)
+        y = Inches(3.7)
         for i, bullet in enumerate(bullets):
             # 小装饰条
             _add_rect(
                 slide,
-                left=Inches(3.0),
+                left=Inches(2.5),
                 top=y + Inches(0.08),
                 width=Inches(0.06),
                 height=Inches(0.25),
                 fill_color=t["accent"],
             )
-            _add_textbox(
+            # 要点文本（支持关键词高亮）
+            self._add_rich_textbox(
                 slide,
-                left=Inches(3.3),
+                left=Inches(2.8),
                 top=y,
-                width=Inches(7.0),
+                width=Inches(8.0),
                 height=Inches(0.45),
                 text=bullet,
                 font_name=t["font_body"],
                 size_pt=t["body_size_pt"],
                 color=t["body_text"],
+                theme=t,
             )
             y += Inches(0.6)
 
@@ -1135,19 +1361,22 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        self._add_top_bar(slide)
+        # 标题带（替代原 _add_top_bar + 单独标题）
+        self._add_title_header(slide, slide_data.get("title", "Thank You"), t,
+                               kicker=slide_data.get("kicker"))
 
-        # 中央大文字 "Thank You / Q&A"
+        # 中央大文字 "Q & A"（使用 key_message 或默认值）
+        key_message = slide_data.get("key_message", "Q & A")
         _add_textbox(
             slide,
             left=Inches(2.0),
             top=Inches(1.8),
             width=self.sw - Inches(4.0),
             height=Inches(1.5),
-            text=slide_data.get("title", "Thank You"),
+            text=key_message,
             font_name=t["font_title"],
             size_pt=48,
-            color=t["header_bar"],
+            color=t["title_band"],
             bold=True,
             alignment=PP_ALIGN.CENTER,
         )
@@ -1162,14 +1391,14 @@ class SlideBuilder:
             fill_color=t["accent"],
         )
 
-        # Q&A 文字
+        # "Thank You" 文字
         _add_textbox(
             slide,
             left=Inches(2.0),
             top=Inches(3.8),
             width=self.sw - Inches(4.0),
             height=Inches(0.8),
-            text="Q & A",
+            text="Thank You",
             font_name=t["font_title"],
             size_pt=32,
             color=t["accent"],
@@ -1266,6 +1495,7 @@ REQUIRED_FIELDS = {"page_num", "page_type", "title"}
 OPTIONAL_FIELDS = {
     "subtitle", "sections", "bullets", "image_path", "image_caption",
     "notes", "highlights", "key_message",
+    "sub_title", "analysis_title", "conclusion", "kicker", "section_no",
 }
 
 
@@ -1384,6 +1614,26 @@ def main():
             # 如果 slides.json 未提供 section_no，自动分配
             if "section_no" not in slide_data:
                 slide_data["section_no"] = section_counter
+
+    # ── 自动补全：确保每页都有足够的字段，效果不依赖AI生成质量 ──
+    for slide_data in slides_data:
+        page_type = slide_data.get("page_type", "content")
+        # content/figure 页：如果没有 conclusion 但有 highlights，提取最后一条作为结论
+        if page_type in ("content", "figure"):
+            if "conclusion" not in slide_data:
+                highlights = slide_data.get("highlights", [])
+                if highlights:
+                    if isinstance(highlights[-1], dict):
+                        slide_data["conclusion"] = highlights[-1].get("content", "")
+                    elif isinstance(highlights[-1], str):
+                        slide_data["conclusion"] = highlights[-1]
+                elif "key_message" in slide_data:
+                    slide_data["conclusion"] = slide_data["key_message"]
+        # conclusion 页：确保有 key_message
+        if page_type == "conclusion" and "key_message" not in slide_data:
+            bullets = slide_data.get("bullets", [])
+            if bullets:
+                slide_data["key_message"] = bullets[0] if isinstance(bullets[0], str) else str(bullets[0])
 
     # ── 构建演示文稿 ──
     builder = SlideBuilder(theme_name=args.theme)
