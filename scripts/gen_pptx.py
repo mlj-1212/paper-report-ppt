@@ -814,16 +814,24 @@ class SlideBuilder:
             content_top = Inches(1.5)
             content_height = self.sh - Inches(2.8)
 
-            # 左侧文字区背景框
+            # 左侧文字区：极淡背景 + 无边框，靠留白自然区分
             _add_rounded_rect(
                 slide,
-                left=text_left - Inches(0.1),
-                top=content_top - Inches(0.1),
-                width=text_col_width + Inches(0.2),
-                height=content_height + Inches(0.2),
-                fill_color=t["white"],
-                line_color=t["border_gray"],
-                line_width=1,
+                left=text_left - Inches(0.05),
+                top=content_top - Inches(0.05),
+                width=text_col_width + Inches(0.1),
+                height=content_height + Inches(0.1),
+                fill_color=RGBColor(0xFC, 0xFC, 0xFC),  # 极浅灰，几乎看不见
+                line_color=None,
+            )
+            # 左侧蓝色竖线装饰（仿TRAE风格，强调文字区）
+            _add_rect(
+                slide,
+                left=text_left + Inches(0.05),
+                top=content_top + Inches(0.2),
+                width=Inches(0.04),
+                height=Inches(0.6),
+                fill_color=t["accent"],
             )
 
             # 要点列表
@@ -857,16 +865,15 @@ class SlideBuilder:
                     color=t["body_text"],
                 )
 
-            # 右侧图片区背景框
+            # 右侧图片区：极淡背景 + 无边框
             _add_rounded_rect(
                 slide,
-                left=img_left - Inches(0.1),
-                top=content_top - Inches(0.1),
-                width=img_col_width + Inches(0.2),
-                height=content_height + Inches(0.2),
-                fill_color=t["white"],
-                line_color=t["border_gray"],
-                line_width=1,
+                left=img_left - Inches(0.05),
+                top=content_top - Inches(0.05),
+                width=img_col_width + Inches(0.1),
+                height=content_height + Inches(0.1),
+                fill_color=RGBColor(0xFA, 0xFA, 0xFA),  # 比左侧再浅一点
+                line_color=None,
             )
 
             # 在右侧区域加载图片（为图注预留底部空间）
