@@ -483,14 +483,16 @@ class SlideBuilder:
             run.text = str(i + 1)
             _set_font(run, t["font_body"], 14, bold=True, color=t["white"])
 
-            # 章节名
+            # 章节名 —— 兼容字符串和字典两种 sections 格式
+            section_title = _extract_section_title(section)
+
             _add_textbox(
                 slide,
                 left=left_col_x + Inches(0.65),
                 top=y,
                 width=Inches(4.5),
                 height=Inches(0.45),
-                text=section,
+                text=section_title,
                 font_name=t["font_body"],
                 size_pt=16,
                 color=t["body_text"],
@@ -1170,6 +1172,19 @@ OPTIONAL_FIELDS = {
 }
 
 
+def _extract_section_title(section):
+    """从 sections 数组项中提取标题文字，兼容字符串和字典两种格式。
+
+    - 字符串: "研究背景" → "研究背景"
+    - 字典:   {"title": "研究背景", "en": "Background", "desc": "..."} → "研究背景"
+    """
+    if isinstance(section, str):
+        return section
+    if isinstance(section, dict):
+        return section.get("title", section.get("name", str(section)))
+    return str(section)
+
+
 def validate_slides(slides):
     """验证 slides.json 数据结构，返回错误列表。"""
     errors = []
@@ -1184,6 +1199,24 @@ def validate_slides(slides):
                 f"  幻灯片 #{i+1}: 未知 page_type '{s['page_type']}', "
                 f"支持: {list(PAGE_TYPE_BUILDERS.keys())}"
             )
+        # 检查 sections 格式（toc 页）
+        sections = s.get("sections")
+        if sections is not None:
+            if not isinstance(sections, list):
+                errors.append(f"  幻灯片 #{i+1}: sections 必须是数组")
+            else:
+                for j, sec in enumerate(sections):
+                    # 允许字符串或字典（含 title 键）
+                    if not isinstance(sec, (str, dict)):
+                        errors.append(
+                            f"  幻灯片 #{i+1}: sections[{j}] 必须是字符串或字典, "
+                            f"实际类型: {type(sec).__name__}"
+                        )
+        # 检查 highlights 格式
+        highlights = s.get("highlights")
+        if highlights is not None:
+            if not isinstance(highlights, list):
+                errors.append(f"  幻灯片 #{i+1}: highlights 必须是数组")
     return errors
 
 
@@ -1214,8 +1247,8 @@ def main():
     parser.add_argument(
         "--theme",
         default="academic",
-        choices=["academic", "minimal"],
-        help="主题风格 (默认: academic)",
+        choices=["academic", "minimal", "trae"],
+        help="主题风格 (默认: academic, 可选: minimal, trae)",
     )
     args = parser.parse_args()
 

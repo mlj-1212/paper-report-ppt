@@ -113,15 +113,32 @@ def find_ppt_master():
 
 
 def detect_environment():
-    """Best-effort detection of the running AI environment."""
-    # Check for TRAE-specific paths
+    """Best-effort detection of the running AI environment.
+
+    检测优先级：
+    1. 环境变量 AI_ENV（用户可显式指定）
+    2. WorkBuddy（检测 .workbuddy 目录或 WORKBUDDY 环境变量）
+    3. TRAE（检测 .trae-cn 目录，但需排除 WorkBuddy 嵌套 TRAE 的情况）
+    4. Claude Code / Cursor / Codex
+    5. unknown
+    """
     home = Path.home()
+
+    # 0. 显式环境变量优先
+    env_explicit = os.environ.get("AI_ENV", "").strip().lower()
+    if env_explicit:
+        return env_explicit
+
+    # 1. WorkBuddy 检测（优先于 TRAE，因为 WorkBuddy 可能运行在装了 TRAE 的机器上）
+    if (home / ".workbuddy").exists() or os.environ.get("WORKBUDDY_HOME"):
+        return "workbuddy"
+
+    # 2. TRAE 检测
     if (home / ".trae-cn").exists() or (home / ".trae").exists():
         return "trae"
     if sys.platform == "win32":
         appdata = os.environ.get("APPDATA", "")
         if "TRAE" in appdata and Path(appdata).exists():
-            # Check if TRAE SOLO CN dir exists
             if (Path(appdata) / "TRAE SOLO CN").exists():
                 return "trae"
 
@@ -258,6 +275,13 @@ def main():
         recommended_path = "B (direct generation)"
     else:
         recommended_path = "B (needs pip install python-pptx PyMuPDF)"
+
+    # 非 TRAE 环境一律推荐路径 B，即使 ppt-master 可用
+    if env != "trae":
+        if has_pptx and has_fitz:
+            recommended_path = "B (direct generation)"
+        else:
+            recommended_path = "B (needs pip install python-pptx PyMuPDF)"
 
     result = {
         "environment": env,
