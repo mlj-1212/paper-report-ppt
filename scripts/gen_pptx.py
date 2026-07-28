@@ -766,7 +766,7 @@ class SlideBuilder:
         _add_notes(slide, slide_data.get("notes", ""))
 
     def build_figure(self, prs, slide_data, page_num, images_dir=None):
-        """构建图表页，居中展示图片。"""
+        """构建图表页，支持左右分栏（文字+图片）或居中图片两种布局。"""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         t = self.theme
 
@@ -801,111 +801,102 @@ class SlideBuilder:
             fill_color=t["border_gray"],
         )
 
-        # 图片区域 — 预留边距 1 英寸
-        img_margin = Inches(1.0)
-        img_area_left = img_margin
-        img_area_top = Inches(1.5)
-        img_area_width = self.sw - img_margin * 2
-        img_area_height = self.sh - Inches(2.8)
+        bullets = slide_data.get("bullets", [])
+        has_bullets = bool(bullets)
 
-        # 图片背景框（浅色底）
-        _add_rounded_rect(
-            slide,
-            left=img_area_left - Inches(0.1),
-            top=img_area_top - Inches(0.1),
-            width=img_area_width + Inches(0.2),
-            height=img_area_height + Inches(0.2),
-            fill_color=t["white"],
-            line_color=t["border_gray"],
-            line_width=1,
-        )
+        if has_bullets:
+            # ── 左右分栏布局：左侧文字分析，右侧图片 ──
+            text_col_width = Inches(5.0)
+            img_col_width = self.sw - text_col_width - Inches(1.6)
+            col_gap = Inches(0.4)
+            text_left = Inches(0.8)
+            img_left = text_left + text_col_width + col_gap
+            content_top = Inches(1.5)
+            content_height = self.sh - Inches(2.8)
 
-        # 加载图片
-        image_path = slide_data.get("image_path", "")
-        actual_image_file = None
-        if image_path:
-            # 支持绝对路径和相对于 images_dir 的路径
-            if os.path.isabs(image_path):
-                actual_image_file = image_path
-            elif images_dir:
-                actual_image_file = os.path.join(images_dir, image_path)
-
-        if actual_image_file and os.path.isfile(actual_image_file):
-            try:
-                # 保持宽高比计算
-                from PIL import Image as PILImage
-                pil_img = PILImage.open(actual_image_file)
-                img_w, img_h = pil_img.size
-                aspect = img_w / img_h
-
-                # 在可用区域内按比例缩放
-                avail_w = img_area_width - Inches(0.4)
-                avail_h = img_area_height - Inches(0.4)
-                if avail_w / avail_h > aspect:
-                    # 高度受限
-                    final_h = avail_h
-                    final_w = int(final_h * aspect)
-                else:
-                    # 宽度受限
-                    final_w = avail_w
-                    final_h = int(final_w / aspect)
-
-                # 居中放置
-                img_left = img_area_left + (img_area_width - final_w) // 2
-                img_top = img_area_top + (img_area_height - final_h) // 2
-
-                slide.shapes.add_picture(
-                    actual_image_file,
-                    img_left, img_top,
-                    final_w, final_h,
-                )
-            except ImportError:
-                # 没有 Pillow, 使用 python-pptx 直接放置，不自动缩放
-                slide.shapes.add_picture(
-                    actual_image_file,
-                    img_area_left + Inches(0.2),
-                    img_area_top + Inches(0.2),
-                    img_area_width - Inches(0.4),
-                    img_area_height - Inches(0.4),
-                )
-            except Exception as e:
-                print(f"警告: 无法加载图片 '{actual_image_file}': {e}")
-                # 显示占位文本
-                _add_textbox(
-                    slide,
-                    left=img_area_left,
-                    top=img_area_top + Inches(2.0),
-                    width=img_area_width,
-                    height=Inches(0.5),
-                    text="[图片加载失败]",
-                    font_name=t["font_body"],
-                    size_pt=16,
-                    color=t["secondary_text"],
-                    alignment=PP_ALIGN.CENTER,
-                )
-        else:
-            # 无图片时显示占位
-            placeholder = _add_rounded_rect(
+            # 左侧文字区背景框
+            _add_rounded_rect(
                 slide,
-                left=img_area_left + Inches(1.5),
-                top=img_area_top + Inches(1.5),
-                width=img_area_width - Inches(3.0),
-                height=img_area_height - Inches(3.0),
-                fill_color=t["highlight"],
+                left=text_left - Inches(0.1),
+                top=content_top - Inches(0.1),
+                width=text_col_width + Inches(0.2),
+                height=content_height + Inches(0.2),
+                fill_color=t["white"],
                 line_color=t["border_gray"],
                 line_width=1,
             )
-            _add_textbox(
+
+            # 要点列表
+            body_top = content_top + Inches(0.2)
+            bullet_left = text_left + Inches(0.3)
+            bullet_width = text_col_width - Inches(0.6)
+            bullet_height = Inches(0.55)
+            max_bullets = min(len(bullets), 6)  # 防止溢出
+
+            for i, bullet in enumerate(bullets[:max_bullets]):
+                y = body_top + i * Inches(0.7)
+                # 子弹符号
+                _add_oval(
+                    slide,
+                    left=text_left + Inches(0.08),
+                    top=y + Inches(0.12),
+                    width=Inches(0.15),
+                    height=Inches(0.15),
+                    fill_color=t["accent"],
+                )
+                # 要点文本
+                _add_textbox(
+                    slide,
+                    left=bullet_left,
+                    top=y,
+                    width=bullet_width,
+                    height=bullet_height,
+                    text=bullet,
+                    font_name=t["font_body"],
+                    size_pt=t["body_size_pt"],
+                    color=t["body_text"],
+                )
+
+            # 右侧图片区背景框
+            _add_rounded_rect(
                 slide,
-                left=img_area_left + Inches(2.0),
-                top=img_area_top + Inches(2.5),
-                width=img_area_width - Inches(4.0),
-                height=Inches(0.5),
-                text="Figure Placeholder",
-                font_name=t["font_body"],
-                size_pt=16,
-                color=t["secondary_text"],
-                alignment=PP_ALIGN.CENTER,
+                left=img_left - Inches(0.1),
+                top=content_top - Inches(0.1),
+                width=img_col_width + Inches(0.2),
+                height=content_height + Inches(0.2),
+                fill_color=t["white"],
+                line_color=t["border_gray"],
+                line_width=1,
+            )
+
+            # 在右侧区域加载图片
+            self._place_image_in_area(
+                slide, slide_data, images_dir,
+                img_left, content_top, img_col_width, content_height, t
+            )
+
+        else:
+            # ── 无文字时：居中图片布局（原版） ──
+            img_margin = Inches(1.0)
+            img_area_left = img_margin
+            img_area_top = Inches(1.5)
+            img_area_width = self.sw - img_margin * 2
+            img_area_height = self.sh - Inches(2.8)
+
+            _add_rounded_rect(
+                slide,
+                left=img_area_left - Inches(0.1),
+                top=img_area_top - Inches(0.1),
+                width=img_area_width + Inches(0.2),
+                height=img_area_height + Inches(0.2),
+                fill_color=t["white"],
+                line_color=t["border_gray"],
+                line_width=1,
+            )
+
+            self._place_image_in_area(
+                slide, slide_data, images_dir,
+                img_area_left, img_area_top, img_area_width, img_area_height, t
             )
 
         # 图片说明
@@ -928,6 +919,87 @@ class SlideBuilder:
         self._add_corner_decorations(slide)
         self._add_bottom_bar(slide, page_num)
         _add_notes(slide, slide_data.get("notes", ""))
+
+    def _place_image_in_area(self, slide, slide_data, images_dir,
+                             area_left, area_top, area_width, area_height, t):
+        """在指定区域内加载并居中放置图片。"""
+        image_path = slide_data.get("image_path", "")
+        actual_image_file = None
+        if image_path:
+            if os.path.isabs(image_path):
+                actual_image_file = image_path
+            elif images_dir:
+                actual_image_file = os.path.join(images_dir, image_path)
+
+        if actual_image_file and os.path.isfile(actual_image_file):
+            try:
+                from PIL import Image as PILImage
+                pil_img = PILImage.open(actual_image_file)
+                img_w, img_h = pil_img.size
+                aspect = img_w / img_h
+
+                avail_w = area_width - Inches(0.4)
+                avail_h = area_height - Inches(0.4)
+                if avail_w / avail_h > aspect:
+                    final_h = avail_h
+                    final_w = int(final_h * aspect)
+                else:
+                    final_w = avail_w
+                    final_h = int(final_w / aspect)
+
+                img_left = area_left + (area_width - final_w) // 2
+                img_top = area_top + (area_height - final_h) // 2
+
+                slide.shapes.add_picture(
+                    actual_image_file,
+                    img_left, img_top,
+                    final_w, final_h,
+                )
+            except ImportError:
+                slide.shapes.add_picture(
+                    actual_image_file,
+                    area_left + Inches(0.2),
+                    area_top + Inches(0.2),
+                    area_width - Inches(0.4),
+                    area_height - Inches(0.4),
+                )
+            except Exception as e:
+                print(f"警告: 无法加载图片 '{actual_image_file}': {e}")
+                _add_textbox(
+                    slide,
+                    left=area_left,
+                    top=area_top + area_height // 2 - Inches(0.25),
+                    width=area_width,
+                    height=Inches(0.5),
+                    text="[图片加载失败]",
+                    font_name=t["font_body"],
+                    size_pt=16,
+                    color=t["secondary_text"],
+                    alignment=PP_ALIGN.CENTER,
+                )
+        else:
+            _add_rounded_rect(
+                slide,
+                left=area_left + Inches(0.5),
+                top=area_top + Inches(0.5),
+                width=area_width - Inches(1.0),
+                height=area_height - Inches(1.0),
+                fill_color=t["highlight"],
+                line_color=t["border_gray"],
+                line_width=1,
+            )
+            _add_textbox(
+                slide,
+                left=area_left + Inches(1.0),
+                top=area_top + area_height // 2 - Inches(0.25),
+                width=area_width - Inches(2.0),
+                height=Inches(0.5),
+                text="Figure Placeholder",
+                font_name=t["font_body"],
+                size_pt=16,
+                color=t["secondary_text"],
+                alignment=PP_ALIGN.CENTER,
+            )
 
     def build_conclusion(self, prs, slide_data, page_num):
         """构建结论页。"""
