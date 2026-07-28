@@ -869,11 +869,29 @@ class SlideBuilder:
                 line_width=1,
             )
 
-            # 在右侧区域加载图片
+            # 在右侧区域加载图片（为图注预留底部空间）
+            img_area_height_caption = content_height - Inches(0.5)
             self._place_image_in_area(
                 slide, slide_data, images_dir,
-                img_left, content_top, img_col_width, content_height, t
+                img_left, content_top, img_col_width, img_area_height_caption, t
             )
+
+            # 图注放在右侧图片正下方
+            caption = slide_data.get("image_caption", "")
+            if caption:
+                _add_textbox(
+                    slide,
+                    left=img_left,
+                    top=content_top + img_area_height_caption + Inches(0.05),
+                    width=img_col_width,
+                    height=Inches(0.4),
+                    text=caption,
+                    font_name=t["font_caption"],
+                    size_pt=t["caption_size_pt"],
+                    color=t["secondary_text"],
+                    italic=True,
+                    alignment=PP_ALIGN.CENTER,
+                )
 
         else:
             # ── 无文字时：居中图片布局（原版） ──
@@ -899,22 +917,22 @@ class SlideBuilder:
                 img_area_left, img_area_top, img_area_width, img_area_height, t
             )
 
-        # 图片说明
-        caption = slide_data.get("image_caption", "")
-        if caption:
-            _add_textbox(
-                slide,
-                left=Inches(1.0),
-                top=self.sh - Inches(1.3),
-                width=self.sw - Inches(2.0),
-                height=Inches(0.5),
-                text=caption,
-                font_name=t["font_caption"],
-                size_pt=t["caption_size_pt"],
-                color=t["secondary_text"],
-                italic=True,
-                alignment=PP_ALIGN.CENTER,
-            )
+            # 图注放在图片正下方（居中）
+            caption = slide_data.get("image_caption", "")
+            if caption:
+                _add_textbox(
+                    slide,
+                    left=Inches(1.0),
+                    top=self.sh - Inches(1.3),
+                    width=self.sw - Inches(2.0),
+                    height=Inches(0.5),
+                    text=caption,
+                    font_name=t["font_caption"],
+                    size_pt=t["caption_size_pt"],
+                    color=t["secondary_text"],
+                    italic=True,
+                    alignment=PP_ALIGN.CENTER,
+                )
 
         self._add_corner_decorations(slide)
         self._add_bottom_bar(slide, page_num)
