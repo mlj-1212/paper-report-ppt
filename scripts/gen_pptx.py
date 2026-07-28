@@ -487,7 +487,7 @@ class SlideBuilder:
     # ── 各页面类型构建方法 ────────────────────────────────
 
     def build_cover(self, prs, slide_data, page_num):
-        """构建封面页。"""
+        """构建封面页 —— 简洁学术风格，细线装饰，居中对齐。"""
         slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
         t = self.theme
 
@@ -497,111 +497,181 @@ class SlideBuilder:
         fill.solid()
         fill.fore_color.rgb = t["background"]
 
-        # 顶部装饰条（使用 title_band 色）
+        # 顶部细条装饰（全宽，高度 0.06 英寸）
         _add_rect(
             slide,
             left=Emu(0), top=Emu(0),
-            width=self.sw, height=Inches(t["top_bar_height_inch"]),
+            width=self.sw, height=Inches(0.06),
             fill_color=t["title_band"],
         )
 
-        # 装饰: 左上角圆角矩形
-        dr1 = _add_rounded_rect(
+        # 底部细条装饰
+        _add_rect(
             slide,
-            left=Inches(0.5),
-            top=Inches(0.6),
-            width=Inches(1.2),
-            height=Inches(0.4),
+            left=Emu(0), top=self.sh - Inches(0.06),
+            width=self.sw, height=Inches(0.06),
+            fill_color=t["title_band"],
+        )
+
+        # 左侧竖线装饰（细线）
+        _add_rect(
+            slide,
+            left=Inches(0.62), top=Inches(1.35),
+            width=Inches(0.04), height=Inches(4.79),
             fill_color=t["accent"],
         )
-        _set_shape_opacity(dr1, 30)
 
-        # 装饰: 右下角圆角矩形
-        dr2 = _add_rounded_rect(
+        # 右上角 L 形小方块装饰（两段细线组成）
+        _add_rect(
             slide,
-            left=self.sw - Inches(2.0),
-            top=self.sh - Inches(1.5),
-            width=Inches(1.5),
-            height=Inches(0.35),
+            left=self.sw - Inches(1.45), top=Inches(1.35),
+            width=Inches(0.83), height=Inches(0.04),
             fill_color=t["accent"],
         )
-        _set_shape_opacity(dr2, 20)
+        _add_rect(
+            slide,
+            left=self.sw - Inches(0.66), top=Inches(1.35),
+            width=Inches(0.04), height=Inches(0.83),
+            fill_color=t["accent"],
+        )
 
-        # 标题 — 居中大号加粗
+        # 左下角 L 形小方块装饰
+        _add_rect(
+            slide,
+            left=Inches(0.62), top=Inches(6.10),
+            width=Inches(0.04), height=Inches(0.83),
+            fill_color=t["accent"],
+        )
+        _add_rect(
+            slide,
+            left=Inches(0.62), top=Inches(6.90),
+            width=Inches(0.83), height=Inches(0.04),
+            fill_color=t["accent"],
+        )
+
+        # 标签 "文献精读汇报"
+        label = slide_data.get("label", "文献精读汇报")
+        if label:
+            _add_textbox(
+                slide,
+                left=Inches(5.0), top=Inches(1.15),
+                width=Inches(3.33), height=Inches(0.38),
+                text=label,
+                font_name=t["font_body"],
+                size_pt=14,
+                color=t["secondary_text"],
+                alignment=PP_ALIGN.CENTER,
+            )
+
+        # 主标题 — 居中大号加粗
         title_text = slide_data.get("title", "论文标题")
         _add_textbox(
             slide,
-            left=Inches(1.5),
-            top=Inches(1.8),
-            width=self.sw - Inches(3.0),
-            height=Inches(1.5),
+            left=Inches(0.5),
+            top=Inches(1.97),
+            width=self.sw - Inches(1.0),
+            height=Inches(0.58),
             text=title_text,
             font_name=t["font_title"],
-            size_pt=40,
+            size_pt=36,
             color=t["header_bar"],
             bold=True,
             alignment=PP_ALIGN.CENTER,
         )
 
-        # 装饰分隔线
+        # 分隔线
         _add_rect(
             slide,
-            left=Inches(4.5),
-            top=Inches(3.5),
-            width=Inches(4.33),
-            height=Inches(0.04),
+            left=Inches(5.10), top=Inches(2.60),
+            width=Inches(3.12), height=Inches(0.01),
             fill_color=t["accent"],
         )
 
-        # 副标题
-        subtitle = slide_data.get("subtitle", "")
-        if subtitle:
+        # 英文副标题（如果有）
+        en_subtitle = slide_data.get("en_subtitle", "")
+        if en_subtitle:
             _add_textbox(
                 slide,
-                left=Inches(2.0),
-                top=Inches(3.8),
-                width=self.sw - Inches(4.0),
-                height=Inches(0.8),
-                text=subtitle,
+                left=Inches(1.0),
+                top=Inches(2.86),
+                width=self.sw - Inches(2.0),
+                height=Inches(0.58),
+                text=en_subtitle,
                 font_name=t["font_body"],
-                size_pt=20,
+                size_pt=16,
                 color=t["secondary_text"],
                 alignment=PP_ALIGN.CENTER,
             )
+        else:
+            # 回退：用 subtitle 字段
+            subtitle = slide_data.get("subtitle", "")
+            if subtitle:
+                _add_textbox(
+                    slide,
+                    left=Inches(2.0), top=Inches(3.8),
+                    width=self.sw - Inches(4.0), height=Inches(0.8),
+                    text=subtitle,
+                    font_name=t["font_body"],
+                    size_pt=20,
+                    color=t["secondary_text"],
+                    alignment=PP_ALIGN.CENTER,
+                )
 
-        # 作者 / 期刊信息
+        # 作者 / 期刊信息框（浅蓝背景圆角矩形）
         info_lines = slide_data.get("bullets", [])
-        y_pos = Inches(4.8)
-        for line in info_lines:
+        if info_lines:
+            # 背景框
+            info_text = "\n".join(info_lines)
+            _add_rounded_rect(
+                slide,
+                left=Inches(4.0), top=Inches(3.85),
+                width=Inches(5.33), height=Inches(0.73),
+                fill_color=t["highlight"],
+                line_color=None,
+            )
             _add_textbox(
                 slide,
-                left=Inches(2.0),
-                top=y_pos,
-                width=self.sw - Inches(4.0),
-                height=Inches(0.4),
-                text=line,
+                left=Inches(4.0), top=Inches(4.01),
+                width=Inches(5.33), height=Inches(0.55),
+                text=info_text,
                 font_name=t["font_body"],
                 size_pt=14,
                 color=t["body_text"],
                 alignment=PP_ALIGN.CENTER,
             )
-            y_pos += Inches(0.45)
 
-        # 底部日期
+        # 底部信息（汇报人 + 日期）
         _add_textbox(
             slide,
-            left=Inches(2.0),
-            top=self.sh - Inches(1.0),
-            width=self.sw - Inches(4.0),
-            height=Inches(0.4),
-            text="2026",
-            font_name=t["font_caption"],
+            left=Inches(2.0), top=Inches(5.41),
+            width=self.sw - Inches(4.0), height=Inches(0.39),
+            text=slide_data.get("footer_text", "研究生组会汇报"),
+            font_name=t["font_body"],
+            size_pt=16,
+            color=t["body_text"],
+            alignment=PP_ALIGN.CENTER,
+        )
+        _add_textbox(
+            slide,
+            left=Inches(2.0), top=Inches(5.92),
+            width=self.sw - Inches(4.0), height=Inches(0.22),
+            text=slide_data.get("presenter", "汇报人：XXX"),
+            font_name=t["font_body"],
+            size_pt=12,
+            color=t["secondary_text"],
+            alignment=PP_ALIGN.CENTER,
+        )
+        _add_textbox(
+            slide,
+            left=Inches(2.0), top=Inches(6.18),
+            width=self.sw - Inches(4.0), height=Inches(0.22),
+            text=slide_data.get("date", "日期：2026 年 7 月"),
+            font_name=t["font_body"],
             size_pt=12,
             color=t["secondary_text"],
             alignment=PP_ALIGN.CENTER,
         )
 
-        self._add_bottom_bar(slide, page_num)
         _add_notes(slide, slide_data.get("notes", ""))
 
     def build_toc(self, prs, slide_data, page_num):
@@ -880,23 +950,39 @@ class SlideBuilder:
 
         for i, bullet in enumerate(bullets):
             y = body_top + i * Inches(0.7)
+            num = i + 1
 
-            # 子弹符号 — 小圆点
-            dot = _add_oval(
-                slide,
-                left=margin + Inches(0.05),
-                top=y + Inches(0.12),
-                width=Inches(0.15),
-                height=Inches(0.15),
-                fill_color=t["accent"],
+            # 编号圆形 — 白色底 + 蓝色边框 + 居中数字
+            circle_size = Inches(0.38)
+            circle_left = margin + Inches(0.05)
+            circle_top = y + Inches(0.05)
+            circle = slide.shapes.add_shape(
+                MSO_SHAPE.OVAL, circle_left, circle_top,
+                circle_size, circle_size
             )
+            circle.fill.solid()
+            circle.fill.fore_color.rgb = t["white"]
+            circle.line.color.rgb = t["accent"]
+            circle.line.width = Pt(1.5)
+            # 数字文字
+            ctf = circle.text_frame
+            ctf.word_wrap = False
+            try:
+                ctf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            except Exception:
+                pass
+            cp = ctf.paragraphs[0]
+            cp.alignment = PP_ALIGN.CENTER
+            crun = cp.add_run()
+            crun.text = str(num)
+            _set_font(crun, t["font_body"], 12, bold=True, color=t["accent"])
 
-            # 要点文本框（支持关键词高亮）
+            # 要点文本框（支持关键词高亮），左侧留出编号空间
             self._add_rich_textbox(
                 slide,
-                left=bullet_left,
+                left=bullet_left + Inches(0.25),
                 top=y,
-                width=bullet_width,
+                width=bullet_width - Inches(0.25),
                 height=bullet_height,
                 text=bullet,
                 font_name=t["font_body"],
