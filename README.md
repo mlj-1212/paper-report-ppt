@@ -22,37 +22,16 @@
 
 ## 30 秒开始
 
-### 第 1 步：克隆仓库
-
 ```bash
-# TRAE 用户
-cd ~/.trae-cn/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
-
-# Claude Code 用户
-cd ~/.claude/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
-
-# Cursor 用户
-cd ~/.cursor/skills && git clone https://github.com/mlj-1212/paper-report-ppt.git
-
-# 任意目录
 git clone https://github.com/mlj-1212/paper-report-ppt.git
-```
-
-### 第 2 步：安装 Python 依赖
-
-```bash
-pip install python-pptx PyMuPDF python-docx Pillow matplotlib
-```
-
-### 第 3 步：环境自检
-
-```bash
 cd paper-report-ppt
-python scripts/install_check.py
+python install.py
 ```
 
-看到 `✅ 核心依赖就绪` 即可开始使用。上传 PDF 说"生成组会汇报 PPT"就行。
+`install.py` 会自动安装全部依赖并完成环境自检，看到 `🎉 安装完成！` 即可使用。
 
+> **AI 环境用户**：也可以直接告诉 AI「安装 https://github.com/mlj-1212/paper-report-ppt 这个 skill」，AI 会自动完成克隆和安装。
+>
 > **仓库体积仅 ~220 KB**（不含截图） — 完全自包含，无外部 skill 依赖，无 Node.js 依赖。
 
 ---
@@ -240,6 +219,7 @@ pip install python-pptx PyMuPDF python-docx Pillow matplotlib
 
 | 脚本 | 功能 |
 |---|---|
+| `install.py` | 一键安装（自动安装依赖 + 环境自检） |
 | `scripts/install_check.py` | 环境自检 |
 | `scripts/parse_pdf.py` | PDF → 结构化 MD + 配图提取 |
 | `scripts/filter_images.py` | 配图筛选/去重/排序 |
@@ -264,11 +244,11 @@ pip install python-pptx PyMuPDF python-docx Pillow matplotlib
 
 ## FAQ
 
-**Q：需要安装 ppt-master 吗？**
-A：不需要。v4.0 是完全自包含的，所有核心能力通过内置 Python 脚本实现。只需 `pip install python-pptx PyMuPDF python-docx Pillow matplotlib` 即可。
+**Q：如何安装？**
+A：克隆仓库后运行 `python install.py` 即可，脚本会自动安装全部依赖并完成自检。
 
-**Q：需要安装 Node.js 吗？**
-A：不需要。v4.0 的演讲稿生成改用 python-docx（Python 库），不再依赖 Node.js。
+**Q：需要安装 ppt-master 或 Node.js 吗？**
+A：都不需要。v4.0 是完全自包含的，所有核心能力通过内置 Python 脚本实现，演讲稿生成使用 python-docx（Python 库）。
 
 **Q：PDF 中的矢量图（流程图/图表）能保留吗？**
 A：位图原样嵌入；矢量图默认不提取，可在第一步选择栅格化（180 DPI）保留。
