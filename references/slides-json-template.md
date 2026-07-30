@@ -18,171 +18,138 @@
 |------|------|------|------|
 | page_num | int | 是 | 页码，从1开始 |
 | page_type | string | 是 | 页面类型：cover/toc/section/content/figure/conclusion/qa |
-| title | string | 是 | 页面标题 |
-| subtitle | string | cover可选 | 副标题（封面页的作者期刊信息） |
+| title | string | 是* | 页面标题（*cover页可用cn_title替代） |
+| cn_title | string | cover可选 | 中文标题（封面页主标题，启用中英文对照） |
+| en_title | string | cover可选 | 英文标题（封面页副标题，与cn_title配合使用） |
+| subtitle | string | cover可选 | 引文信息（作者, 期刊, 年份），显示在深蓝圆角引文条中 |
 | sections | array | toc必需 | 目录章节列表，字符串数组 |
 | bullets | array | content/figure可选 | 要点列表，字符串数组 |
-| sub_title | string | content可选 | 小标题（显示在标题下方，带蓝色竖线装饰） |
+| sub_title | string | content可选 | 小标题（显示在标题下方，无竖线装饰） |
 | analysis_title | string | figure可选 | 图表分析小标题（等同sub_title） |
-| conclusion | string | content/figure可选 | 结论文字（显示在底部浅蓝色结论框中） |
+| conclusion | string | content/figure可选 | 结论文字（显示在底部结论框中） |
 | key_message | string | conclusion/qa可选 | 核心信息（结论页大字展示） |
-| highlights | array | content可选 | 高亮信息，字典数组[{title, content}] |
-| image_path | string | figure可选 | 图片文件路径 |
-| image_caption | string | figure可选 | 图片说明文字 |
-| notes | string | 全部可选 | 演讲者备注 |
-| kicker | string | 全部可选 | 标题栏右上角标签（如"遗传学验证"） |
-| section_no | int | section可选 | 章节编号（不填则自动分配） |
+| image_path | string | figure/model必需 | 配图相对路径（相对于images-dir） |
+| image_caption | string | figure/model可选 | 图片说明文字 |
+| presenter | string | cover可选 | 汇报人信息 |
+| date | string | cover可选 | 汇报日期 |
+| notes | string | 所有类型可选 | Speaker notes（演讲提示） |
 
 ---
 
-## 各页面类型完整示例
+## page_type 详细规范
 
-### cover 页示例
+### cover — 封面页
 
 ```json
 {
   "page_num": 1,
   "page_type": "cover",
-  "title": "论文标题",
-  "subtitle": "作者, 期刊, 年份",
-  "notes": "演讲备注"
+  "cn_title": "文献精读汇报：水稻条纹病毒劫持宿主去泛素化通路的分子机制",
+  "en_title": "RSV Infection Induces Upregulation of Deubiquitinase UBP16 to Stabilize SHMT1 for Promoting Viral Infection",
+  "subtitle": "Wang et al., Stress Biology, 2025",
+  "presenter": "汇报人：张三",
+  "date": "2026年7月30日",
+  "notes": "今天汇报的文献是..."
 }
 ```
 
-### toc 页示例
+### toc — 目录页
 
 ```json
 {
   "page_num": 2,
   "page_type": "toc",
   "title": "汇报提纲",
-  "sections": ["研究背景", "科学问题", "方法", "结果", "讨论", "结论"],
-  "notes": "演讲备注"
+  "sections": ["研究背景", "科学问题", "方法总览", "主要结果", "讨论与创新", "结论与展望"],
+  "notes": "本次汇报分为六个部分..."
 }
 ```
 
-### section 页示例
+### section — 章节分隔页
+
+```json
+{
+  "page_num": 5,
+  "page_type": "section",
+  "title": "主要结果",
+  "notes": "接下来进入结果部分..."
+}
+```
+
+### content — 内容页
 
 ```json
 {
   "page_num": 3,
-  "page_type": "section",
-  "title": "研究背景与科学问题",
-  "notes": "演讲备注"
-}
-```
-
-### content 页示例（完整版）
-
-```json
-{
-  "page_num": 4,
   "page_type": "content",
-  "title": "研究背景：RSV与植物防御",
-  "sub_title": "前期工作与知识空白",
-  "kicker": "背景介绍",
+  "title": "研究背景",
+  "sub_title": "RSV与植物泛素化防御",
   "bullets": [
-    "水稻条纹病毒（RSV）是水稻生产最具破坏性的病毒之一",
-    "植物抗病毒免疫主要为两层：PTI与ETI，伴随ROS爆发",
-    "前期工作：E3连接酶MEL泛素化并降解SHMT1，激活防御",
-    "知识空白：去泛素化酶是否参与调控植物病毒侵染尚不清楚"
+    "水稻条纹病毒（RSV）是水稻最重要的病毒病原之一",
+    "植物通过泛素-蛋白酶体系统（UPS）调控抗病毒免疫",
+    "去泛素化酶（DUB）在病毒感染中的调控机制尚不清楚"
   ],
-  "conclusion": "去泛素化酶是否参与调控病毒侵染是本文要回答的核心问题",
-  "notes": "演讲备注"
+  "highlights": [
+    {"title": "知识缺口", "content": "UBP16在RSV感染中的功能未知"}
+  ],
+  "conclusion": "因此，解析UBP16的抗病毒调控机制具有重要意义",
+  "notes": "首先介绍研究背景..."
 }
 ```
 
-### figure 页示例（完整版）
+### figure — 配图页
 
 ```json
 {
   "page_num": 7,
   "page_type": "figure",
-  "title": "图1 NbUBP16响应并调控RSV侵染",
-  "sub_title": "RNA-seq筛选与功能验证",
-  "kicker": "实验结果",
+  "title": "系统筛选结果",
+  "analysis_title": "NbUBP16响应RSV感染",
+  "image_path": "paper_files/figure_1.png",
+  "image_caption": "Figure 1: 病毒诱导的UBP16上调验证",
   "bullets": [
-    "RNA-seq：RSV侵染后15个DUBs中仅NbUBP16明显上调（4-6倍）",
-    "VIGS敲低NbUBP16后，RSV症状与外壳蛋白积累显著下降"
+    "RSV感染显著诱导NbUBP16转录本上调",
+    "Western blot证实蛋白水平同步上升",
+    "沉默NbUBP16显著抑制病毒积累"
   ],
-  "conclusion": "NbUBP16是RSV侵染的正调控因子",
-  "image_path": "图片文件路径",
-  "image_caption": "Fig. 1 NbUBP16 responds to and regulates RSV infection.",
-  "notes": "演讲备注"
+  "conclusion": "NbUBP16正向调控RSV感染",
+  "notes": "请看这张图..."
 }
 ```
 
-### conclusion 页示例
+### conclusion — 结论页
 
 ```json
 {
   "page_num": 16,
   "page_type": "conclusion",
   "title": "结论",
-  "key_message": "RSV诱导NbUBP16上调，去泛素化稳定NbSHMT1、抑制ROS，从而促进病毒侵染",
+  "key_message": "RSV劫持宿主去泛素化通路稳定SHMT1抑制ROS积累",
   "bullets": [
-    "揭示病毒劫持宿主去泛素化通路的新策略",
-    "为抗病靶点设计提供线索"
+    "首次揭示植物DUB调控病毒感染的分子机制",
+    "发现病毒-宿主互作新范式"
   ],
-  "notes": "演讲备注"
+  "notes": "总结本次汇报的核心结论..."
 }
 ```
 
-### qa 页示例
+### qa — 致谢页
 
 ```json
 {
   "page_num": 17,
   "page_type": "qa",
-  "title": "感谢与讨论",
-  "key_message": "Q & A · 欢迎提问",
-  "bullets": ["感谢各位老师同学"],
-  "notes": "演讲备注"
+  "title": "感谢聆听",
+  "key_message": "Q&A / 欢迎提问",
+  "notes": "以上就是本次汇报的全部内容..."
 }
 ```
 
 ---
 
-## 生成规则（重要！）
+## 注意事项
 
-1. 每页必须有 `page_num`、`page_type`、`title` 三个字段。
-2. content 和 figure 页强烈建议填写 `sub_title`、`conclusion` 字段（直接影响PPT美观度）。
-3. bullets 中可包含学术关键词（如"增加""减少""促进""抑制"），脚本会自动标红加粗。
-4. figure 页的 `image_path` 必须是图片文件的绝对路径。
-5. sections 数组可以是字符串数组，也可以是字典数组 `[{title, en, desc}]`。
-6. 如果不填 `conclusion`，脚本会自动从 highlights 或 key_message 中提取。
-7. 总页数建议14-17页，遵循IMRaD结构。
-
----
-
-## 完整17页示例大纲
-
-标准17页的 page_type 序列如下：
-
-```
-cover(1) → toc(2) → section(3) → content(4) → content(5) →
-section(6) → figure(7-13) → section(14) → content(15) →
-conclusion(16) → qa(17)
-```
-
-对应页面类型分布：
-
-| 页码 | page_type | 说明 |
-|------|-----------|------|
-| 1 | cover | 封面：论文标题、作者、期刊、年份 |
-| 2 | toc | 目录：汇报提纲导航 |
-| 3 | section | 章节页：研究背景与科学问题 |
-| 4 | content | 研究背景介绍 |
-| 5 | content | 科学问题与研究策略 |
-| 6 | section | 章节页：实验结果 |
-| 7 | figure | 主要结果图1 |
-| 8 | figure | 主要结果图2 |
-| 9 | figure | 主要结果图3 |
-| 10 | figure | 主要结果图4 |
-| 11 | figure | 主要结果图5 |
-| 12 | figure | 主要结果图6 |
-| 13 | figure | 主要结果图7 |
-| 14 | section | 章节页：讨论与结论 |
-| 15 | content | 讨论与创新点总结 |
-| 16 | conclusion | 结论：核心发现一句话总结 |
-| 17 | qa | 致谢与讨论 |
+1. **图片路径**：`image_path` 使用相对于 `--images-dir` 的相对路径
+2. **JSON 合法性**：确保没有 trailing commas、所有字符串用双引号
+3. **页码连续**：page_num 应从 1 开始连续递增
+4. **notes 长度**：每页 notes 建议 50-150 字，作为演讲提示
