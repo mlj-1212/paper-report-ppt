@@ -28,7 +28,7 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 |---|---|---|
 | 文献 PDF | 是 | 研究生文献（论文 / 预印本 / 学位论文），本地路径 |
 | 汇报场景 | 否 | 组会 / 开题 / 中期 / 答辩；默认组会 |
-| 目标页数 | 否 | 默认 12–18 页（含封面目录） |
+| 目标页数 | 否 | 固定 17 页（含封面目录），不可更改 |
 | 语言 | 否 | 默认跟随文献语言；中文文献默认中文汇报 |
 | 侧重 | 否 | IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比；默认均衡 |
 | 演讲稿 | 否 | 是否同步生成完整演讲稿（独立 DOCX 文稿）；默认生成 |
@@ -107,14 +107,14 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/parse_pdf.py <pdf_path> -o <work_dir>/<st
 
 #### 脉络模板预设
 
-根据 S0 收集的"侧重"方向，从 `references/outline-templates.md` 选取对应模板：
+根据 S0 收集的"侧重"方向，从 `references/outline-templates.md` 选取对应模板。**无论选哪个模板，最终 slides.json 的 page_type 序列必须遵循 R1 硬性规则（17页固定结构）**，区别仅在于 content 页的侧重方向不同：
 
 | 侧重方向 | 模板 | 页数范围 | 适用场景 |
 |----------|------|:---:|------|
-| IMRaD 均衡 | 模板 1 | 14–17 | 常规组会汇报（默认） |
-| 问题驱动 | 模板 2 | 10–12 | 紧凑汇报，聚焦"问题→解决" |
-| 创新点驱动 | 模板 3 | 13–16 | 开题/中期/答辩，强调创新 |
-| 综述对比 | 模板 4 | 12–15 | 文献综述，横向对比 |
+| IMRaD 均衡 | 模板 1 | 17 | 常规组会汇报（默认） |
+| 问题驱动 | 模板 2 | 17 | 紧凑汇报，聚焦"问题→解决" |
+| 创新点驱动 | 模板 3 | 17 | 开题/中期/答辩，强调创新 |
+| 综述对比 | 模板 4 | 17 | 文献综述，横向对比 |
 
 #### 配图智能筛选与排序
 
@@ -192,7 +192,7 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list
     "page_num": 7,
     "page_type": "figure",
     "title": "系统筛选结果",
-    "image_path": "<stem>_files/figure_1.png",
+    "image_path": "figure_1.png",
     "image_caption": "Figure 1: ...",
     "bullets": [],
     "notes": "请看这张图..."
@@ -259,7 +259,7 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
 |---|---|---|
 | 定位 | PPT 备注栏提示 | 独立完整文稿 |
 | 粒度 | 每页几句要点 | 连贯叙事，含开场白/过渡语/结尾 |
-| 长度 | 每页 50-100 字 | 全文 3000–6000 字（20 分钟演讲） |
+| 长度 | 每页 50-100 字 | 全文 3000-6000 字（20 分钟演讲） |
 | 用途 | 演讲时瞄一眼 | 逐字练习/留存参考 |
 
 **Step 1 — AI 生成 speech_data.json**
@@ -369,6 +369,73 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/validate_pptx.py <work_dir>/output.pptx \
 - 每页最多 1–2 张配图，避免信息过载
 - 装饰性小图 / logo 不纳入
 - 详细规则见 `references/image-selection.md`
+
+### 4. 跨环境一致性保证（硬性规则）
+
+为确保同一份文献在不同 AI 环境（TRAE / WorkBuddy / Cursor / Qwen 等）中生成结构一致的 PPT，AI 在 S2/S3 生成 slides.json 时**必须**遵守以下规则。违反任一规则将导致不同环境输出不一致。
+
+#### R1 — 固定页面结构（17页制）
+
+所有文献统一生成 **17 页**，page_type 序列固定为：
+
+```
+cover(1) → toc(2) → section(3) → content(4) → content(5) →
+section(6) → figure(7~13) → section(14) → content(15) →
+conclusion(16) → qa(17)
+```
+
+- 结果图不足 7 张时：figure 页数 = 实际配图数（7~13 页区间弹性），后续页码顺延
+- 结果图超过 7 张时：合并次要图，最多 7 个 figure 页
+- **不允许**省略 section 分隔页；**不允许**在 section 前插入 content 页
+
+#### R2 — 封面页固定格式
+
+封面页**必须**同时包含 `cn_title` 和 `en_title`，**禁止**仅使用 `title`：
+
+```json
+{
+  "page_type": "cover",
+  "cn_title": "文献中文标题（完整翻译，不缩写）",
+  "en_title": "文献英文原标题（照抄原文）",
+  "subtitle": "第一作者 et al., 期刊名, 年份"
+}
+```
+
+#### R3 — 图片路径必须使用 manifest 文件名
+
+`image_path` **必须**直接使用 `image_manifest_filtered.json` 中该图片的 `filename` 字段值（不含目录前缀）。
+
+```
+正确: "image_path": "JPGR_p6_0.jpeg"
+错误: "image_path": "figure_1.png"
+错误: "image_path": "/abs/path/to/JPGR_p6_0.jpeg"
+```
+
+**禁止**自行重命名、使用索引偏移、或编造文件名。
+
+#### R4 — 一图一页
+
+每个 figure 页**只放一张**配图。**禁止**将 Figure 2 和 Figure 3 合并到同一页。如果文献有 9 张图，则生成 7 个 figure 页（合并最次要的 2 张），而非 5 个 figure 页（每页放 2 张）。
+
+#### R5 — 目录固定四段式
+
+toc 页的 `sections` 固定为四段，**不得**自行增减：
+
+```json
+"sections": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"]
+```
+
+#### R6 — bullets 数量与长度
+
+| 页面类型 | bullets 数量 | 每条最大长度 |
+|---|---|---|
+| content | 3-4 条 | 40 个中文字符 |
+| figure | 2-3 条 | 40 个中文字符 |
+| conclusion | 3-5 条 | 35 个中文字符 |
+
+#### R7 — content/figure 页必填字段
+
+content 页**必须**包含 `sub_title` 和 `conclusion` 字段；figure 页**必须**包含 `image_caption` 和 `sub_title` 字段。这些字段直接影响 PPT 美观度，缺失会导致版面空洞。
 
 ---
 
