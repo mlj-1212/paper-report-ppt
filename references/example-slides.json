@@ -1,0 +1,209 @@
+[
+  {
+    "page_num": 1,
+    "page_type": "cover",
+    "cn_title": "泛素特异性蛋白酶16通过调控Na+/H+逆向转运活性调节拟南芥的耐盐性",
+    "en_title": "UBIQUITIN-SPECIFIC PROTEASE16 Modulates Salt Tolerance in Arabidopsis",
+    "subtitle": "Zhou et al., The Plant Cell, 2012, Vol. 24: 5106-5122",
+    "presenter": "汇报人：研究生组会汇报",
+    "date": "2026年7月29日",
+    "notes": "今天汇报的文献是2012年发表在The Plant Cell上的文章，主要报道了去泛素化酶UBP16在拟南芥耐盐调控中的功能机制。"
+  },
+  {
+    "page_num": 2,
+    "page_type": "toc",
+    "title": "汇报提纲",
+    "sections": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"],
+    "notes": "本次汇报分为四个部分：首先介绍研究背景和科学问题，然后简要介绍材料与方法，重点展示主要结果，最后进行讨论和总结。"
+  },
+  {
+    "page_num": 3,
+    "page_type": "section",
+    "title": "研究背景与科学问题",
+    "section_no": 1,
+    "notes": "首先进入第一部分，研究背景与科学问题。"
+  },
+  {
+    "page_num": 4,
+    "page_type": "content",
+    "title": "研究背景：盐胁迫与植物响应",
+    "sub_title": "盐胁迫信号通路与Na+稳态调控",
+    "kicker": "背景介绍",
+    "bullets": [
+      "土壤盐渍化是全球农业主要非生物胁迫之一，导致作物减产",
+      "植物通过SOS信号通路调控Na+外排，维持离子稳态",
+      "泛素化修饰在胁迫信号传导中发挥关键调控作用",
+      "去泛素化酶（DUBs）是否参与耐盐调控尚不清楚"
+    ],
+    "conclusion": "去泛素化酶在植物耐盐调控中的功能是本文要回答的核心问题",
+    "notes": "盐胁迫是影响植物生长的重要非生物胁迫。植物主要通过SOS通路调控Na+外排来维持离子稳态。泛素化修饰在胁迫信号传导中有重要作用，但去泛素化酶是否参与耐盐调控还不清楚，这就是本文的切入点。"
+  },
+  {
+    "page_num": 5,
+    "page_type": "content",
+    "title": "科学问题与研究策略",
+    "sub_title": "UBP16的发现与功能假说",
+    "kicker": "科学问题",
+    "bullets": [
+      "前期筛选发现ubp16突变体对盐胁迫高度敏感",
+      "UBP16是否通过去泛素化调控SOS1蛋白稳定性？",
+      "研究策略：遗传学+生化+生理学三管齐下",
+      "预期：UBP16去泛素化稳定SOS1，增强Na+外排能力"
+    ],
+    "conclusion": "核心假说：UBP16通过去泛素化SOS1维持其蛋白稳定性，从而调控耐盐性",
+    "notes": "作者在前期筛选中发现ubp16突变体对盐胁迫高度敏感，由此提出科学问题：UBP16是否通过去泛素化调控SOS1蛋白稳定性？研究采用了遗传学、生化和生理学三种手段相结合的策略。"
+  },
+  {
+    "page_num": 6,
+    "page_type": "section",
+    "title": "主要结果",
+    "section_no": 2,
+    "notes": "接下来进入第二部分，主要结果展示。"
+  },
+  {
+    "page_num": 7,
+    "page_type": "figure",
+    "title": "图1 ubp16突变体盐敏感表型",
+    "sub_title": "UBP16缺失导致耐盐性显著下降",
+    "kicker": "遗传学验证",
+    "bullets": [
+      "ubp16突变体在150mM NaCl处理下根长显著缩短",
+      "回补株系恢复了野生型耐盐表型"
+    ],
+    "conclusion": "UBP16正调控拟南芥耐盐性",
+    "image_path": "JPGR_p6_0.jpeg",
+    "image_caption": "Fig. 1 ubp16 mutant shows salt-hypersensitive phenotype.",
+    "notes": "请看这张图，左 panel 是野生型、突变体和回补株系在正常和盐胁迫条件下的根长比较。可以看到ubp16突变体在盐处理下根长显著缩短，而回补株系恢复了正常表型，说明UBP16正调控耐盐性。"
+  },
+  {
+    "page_num": 8,
+    "page_type": "figure",
+    "title": "图2 UBP16蛋白结构域分析",
+    "sub_title": "UBP16含有典型去泛素化酶催化结构域",
+    "kicker": "结构分析",
+    "bullets": [
+      "UBP16含C19泛素特异性蛋白酶催化结构域",
+      "催化活性关键位点Cys和His保守"
+    ],
+    "conclusion": "UBP16是典型的去泛素化酶家族成员",
+    "image_path": "JPGR_p7_1.jpeg",
+    "image_caption": "Fig. 2 Domain architecture of UBP16.",
+    "notes": "这张图展示了UBP16的蛋白结构域，可以看到它含有典型的C19去泛素化酶催化结构域，催化活性关键位点Cys和His都很保守，说明它是典型的去泛素化酶。"
+  },
+  {
+    "page_num": 9,
+    "page_type": "figure",
+    "title": "图3 UBP16与SOS1蛋白互作验证",
+    "sub_title": "酵母双杂交与Co-IP证实互作",
+    "kicker": "互作验证",
+    "bullets": [
+      "酵母双杂交显示UBP16与SOS1 C端互作",
+      "Co-IP实验在体内证实两者形成复合物"
+    ],
+    "conclusion": "UBP16与SOS1存在物理互作",
+    "image_path": "JPGR_p7_2.jpeg",
+    "image_caption": "Fig. 3 UBP16 interacts with SOS1 in yeast and in planta.",
+    "notes": "这张图通过酵母双杂交和免疫共沉淀实验证实了UBP16与SOS1的物理互作，为后续功能验证奠定了基础。"
+  },
+  {
+    "page_num": 10,
+    "page_type": "figure",
+    "title": "图4 UBP16去泛素化SOS1",
+    "sub_title": "体外与体内去泛素化活性验证",
+    "kicker": "生化验证",
+    "bullets": [
+      "体外去泛素化实验：野生型UBP16去除SOS1上的泛素链",
+      "催化失活突变体（C→S）丧失去泛素化能力"
+    ],
+    "conclusion": "UBP16以酶活依赖方式去泛素化SOS1",
+    "image_path": "JPGR_p8_3.jpeg",
+    "image_caption": "Fig. 4 UBP16 deubiquitinates SOS1 in vitro and in vivo.",
+    "notes": "这张图是关键的生化证据。左panel是体外去泛素化实验，野生型UBP16能去除SOS1上的泛素链，而催化失活突变体不能，说明去泛素化依赖于酶活。"
+  },
+  {
+    "page_num": 11,
+    "page_type": "figure",
+    "title": "图5 UBP16调控SOS1蛋白稳定性",
+    "sub_title": "去泛素化抑制SOS1的26S蛋白酶体降解",
+    "kicker": "蛋白稳定性",
+    "bullets": [
+      "ubp16突变体中SOS1蛋白水平显著降低",
+      "MG132处理部分恢复突变体中SOS1蛋白量"
+    ],
+    "conclusion": "UBP16通过去泛素化阻止SOS1的蛋白酶体降解",
+    "image_path": "JPGR_p9_4.jpeg",
+    "image_caption": "Fig. 5 UBP16 stabilizes SOS1 protein through deubiquitination.",
+    "notes": "这张图展示了UBP16对SOS1蛋白稳定性的调控。在ubp16突变体中SOS1蛋白水平显著降低，而蛋白酶体抑制剂MG132可以部分恢复，说明UBP16通过抑制泛素-蛋白酶体途径来稳定SOS1。"
+  },
+  {
+    "page_num": 12,
+    "page_type": "figure",
+    "title": "图6 UBP16调控Na+/H+逆向转运活性",
+    "sub_title": "质膜Na+外排依赖于UBP16-SOS1模块",
+    "kicker": "生理验证",
+    "bullets": [
+      "ubp16突变体质膜Na+/H+逆向转运活性显著降低",
+      "SOS1蛋白量下降直接导致Na+外排能力减弱"
+    ],
+    "conclusion": "UBP16通过稳定SOS1维持Na+/H+逆向转运活性",
+    "image_path": "JPGR_p10_5.png",
+    "image_caption": "Fig. 6 UBP16 regulates Na+/H+ antiport activity.",
+    "notes": "这张图从生理层面验证了功能。通过测量质膜Na+/H+逆向转运活性，发现ubp16突变体中活性显著降低，这与SOS1蛋白量下降直接相关。"
+  },
+  {
+    "page_num": 13,
+    "page_type": "figure",
+    "title": "图7 UBP16-SOS1模块耐盐工作模型",
+    "sub_title": "盐胁迫下UBP16去泛素化稳定SOS1增强耐盐",
+    "kicker": "工作模型",
+    "bullets": [
+      "盐胁迫→UBP16被激活→去泛素化SOS1",
+      "SOS1蛋白稳定→Na+外排增强→耐盐性提高"
+    ],
+    "conclusion": "UBP16-SOS1模块是植物耐盐调控的新机制",
+    "image_path": "JPGR_p11_6.jpeg",
+    "image_caption": "Fig. 7 Working model of UBP16-SOS1 module in salt tolerance.",
+    "notes": "最后这张图是作者提出的工作模型。盐胁迫下UBP16被激活，去泛素化稳定SOS1蛋白，增强Na+外排能力，从而提高耐盐性。这是一个完整的信号通路模型。"
+  },
+  {
+    "page_num": 14,
+    "page_type": "section",
+    "title": "讨论与结论",
+    "section_no": 3,
+    "notes": "最后进入第三部分，讨论与结论。"
+  },
+  {
+    "page_num": 15,
+    "page_type": "content",
+    "title": "讨论与创新点总结",
+    "sub_title": "去泛素化调控耐盐的新视角",
+    "kicker": "讨论总结",
+    "bullets": [
+      "首次揭示去泛素化酶在植物耐盐调控中的功能",
+      "发现UBP16-SOS1模块的翻译后调控新机制",
+      "为作物耐盐改良提供潜在靶点"
+    ],
+    "conclusion": "本文揭示了去泛素化调控Na+转运蛋白稳定性的新机制，为植物耐盐育种提供新思路",
+    "notes": "本文的创新点在于首次揭示了去泛素化酶在植物耐盐调控中的功能，发现了UBP16-SOS1模块的翻译后调控新机制，为作物耐盐改良提供了潜在靶点。"
+  },
+  {
+    "page_num": 16,
+    "page_type": "conclusion",
+    "title": "结论",
+    "key_message": "UBP16通过去泛素化稳定SOS1蛋白，增强Na+/H+逆向转运活性，从而调控拟南芥耐盐性",
+    "bullets": [
+      "ubp16突变体盐敏感，回补恢复耐盐",
+      "UBP16与SOS1互作并去泛素化稳定SOS1",
+      "SOS1稳定性增强促进Na+外排"
+    ],
+    "notes": "总结一下，本文的核心发现是：UBP16通过去泛素化稳定SOS1蛋白，增强Na+/H+逆向转运活性，从而调控拟南芥耐盐性。"
+  },
+  {
+    "page_num": 17,
+    "page_type": "qa",
+    "title": "感谢与讨论",
+    "key_message": "Q & A · 欢迎提问",
+    "bullets": ["感谢各位老师同学的聆听"],
+    "notes": "以上就是本次汇报的全部内容，感谢大家的聆听，欢迎提问和讨论。"
+  }
+]
