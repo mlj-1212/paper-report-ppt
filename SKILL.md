@@ -159,6 +159,8 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list
 
 这是 AI 唯一需要做的创造性工作——把 outline 中每页的文字内容、配图分配、speaker notes 组织为 JSON 格式。不需要手写 SVG，不需要理解 DrawingML 规范。
 
+> **参考示例**：完整的 17 页 slides.json 示例见 `references/example-slides.json`，AI 生成时应严格模仿其结构和字段填写方式，确保跨环境一致。
+
 **slides.json 格式**：
 
 ```json
@@ -219,6 +221,18 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list
 | `model` | 工作模型页 | `title`, `image_path` | `image_caption`, `notes` |
 | `conclusion` | 结论页 | `title`, `key_message` | `bullets`, `notes` |
 | `qa` | 致谢页 | `title` | `key_message`, `notes` |
+
+##### Step 2.5 — 验证 slides.json（跨环境一致性检查）
+
+生成 slides.json 后，**必须**运行验证脚本，确保符合 R1-R7 硬性规则：
+
+```bash
+python ${PAPER_REPORT_PPT_DIR}/scripts/validate_slides_json.py <work_dir>/slides.json \
+  --manifest <work_dir>/image_manifest_filtered.json
+```
+
+退出码 0=通过，1=有错误。**有错误时必须修改 slides.json 后重新验证**，直到全部通过。
+`--json` 模式可获取机器可读报告，方便 AI 自动解析并修复。
 
 ##### Step 3 — 执行 gen_pptx.py 生成 PPTX
 
@@ -461,6 +475,7 @@ content 页**必须**包含 `sub_title` 和 `conclusion` 字段；figure 页**�
 | `render_formula.py` | LaTeX 公式 → PNG | matplotlib |
 | `gen_pptx.py` | slides.json → 可编辑 PPTX | python-pptx |
 | `gen_speech_docx.py` | speech_data.json → 演讲稿 DOCX | python-docx |
+| `validate_slides_json.py` | slides.json 跨环境一致性验证 | 无 |
 | `validate_pptx.py` | PPTX 三项质检 | python-pptx |
 
 ---
