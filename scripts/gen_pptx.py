@@ -88,6 +88,74 @@ THEMES = {
         "margin_inch": 1.0,
         "decorations": False,
     },
+    "trae": {
+        # 颜色 — 自然简洁、无装饰
+        "background": RGBColor(0xFF, 0xFF, 0xFF),       # #FFFFFF 纯白背景
+        "header_bar": RGBColor(0x1A, 0x1A, 0x2E),        # #1A1A2E 深色顶部条
+        "accent": RGBColor(0x00, 0x7A, 0xCC),             # #007ACC TRAE蓝
+        "highlight": RGBColor(0xF0, 0xF6, 0xFC),         # #F0F6FC 浅蓝高亮
+        "body_text": RGBColor(0x1A, 0x1A, 0x2E),          # #1A1A2E 正文
+        "secondary_text": RGBColor(0x6C, 0x75, 0x7D),     # #6C757D 次要文字
+        "white": RGBColor(0xFF, 0xFF, 0xFF),
+        "border_gray": RGBColor(0xDE, 0xE2, 0xE6),        # #DEE2E6 图片边框
+        "decor_corner": RGBColor(0xF0, 0xF6, 0xFC),       # 角落装饰（50%透明度）
+        "section_bg": RGBColor(0x00, 0x7A, 0xCC),          # #007ACC 章节分隔页背景带
+        "title_band": RGBColor(0x1A, 0x1A, 0x2E),          # #1A1A2E 深色标题带
+        "conclusion_bg": RGBColor(0xF0, 0xF6, 0xFC),       # #F0F6FC 浅蓝结论框背景
+        "keyword_red": RGBColor(0xC0, 0x39, 0x2B),         # #C0392B 关键词红色
+        "sub_title_bg": RGBColor(0xF8, 0xF9, 0xFA),        # #F8F9FA 小标题浅背景
+        # 字体
+        "font_title": "Microsoft YaHei",
+        "font_body": "Microsoft YaHei",
+        "font_caption": "Microsoft YaHei",
+        "title_size_pt": 28,
+        "body_size_pt": 14,
+        "caption_size_pt": 12,
+        # 布局
+        "slide_width_inch": 13.33,
+        "slide_height_inch": 7.5,
+        "top_bar_height_inch": 0.25,
+        "header_area_height_inch": 1.1,
+        "margin_inch": 0.9,
+        # 装饰开关 — 无装饰
+        "decorations": False,
+    },
+    "ref": {
+        # 颜色 — 对标参考 PPT 风格（浅灰底 + 海军蓝导航 + 白色直角卡片）
+        "background": RGBColor(0xEE, 0xF2, 0xF5),       # #EEF2F5 浅灰背景
+        "header_bar": RGBColor(0x30, 0x43, 0x71),        # #304371 深蓝标题带
+        "accent": RGBColor(0x30, 0x43, 0x71),             # #304371 深蓝强调
+        "accent2": RGBColor(0x24, 0x32, 0x55),            # #243255 海军蓝（原橙色已弃用）
+        "accent3": RGBColor(0x24, 0x32, 0x55),            # #243255 海军蓝
+        "highlight": RGBColor(0xFF, 0xFF, 0xFF),          # #FFFFFF 白色高亮
+        "body_text": RGBColor(0x33, 0x33, 0x33),          # #333333 正文
+        "secondary_text": RGBColor(0x66, 0x66, 0x66),     # #666666 次要文字
+        "tertiary_text": RGBColor(0x80, 0x80, 0x80),      # #808080 三级文字
+        "white": RGBColor(0xFF, 0xFF, 0xFF),
+        "border_gray": RGBColor(0xDD, 0xDD, 0xDD),        # #DDDDDD 边框灰
+        "conclusion_bg": RGBColor(0xFF, 0xFF, 0xFF),      # #FFFFFF 结论框背景（透明感）
+        "keyword_red": RGBColor(0xC0, 0x39, 0x2B),         # #C0392B 关键词红色
+        "sub_title_bg": RGBColor(0xFF, 0xFF, 0xFF),        # #FFFFFF 小标题背景
+        "title_band": RGBColor(0x30, 0x43, 0x71),          # #304371 标题带
+        "card_bg": RGBColor(0xFF, 0xFF, 0xFF),             # #FFFFFF 卡片背景
+        "nav_bg": RGBColor(0x24, 0x32, 0x55),              # #243255 导航栏背景
+        "nav_active": RGBColor(0x30, 0x43, 0x71),          # #304371 激活标签
+        # 字体
+        "font_title": "Microsoft YaHei",
+        "font_body": "Arial",
+        "font_caption": "Arial",
+        "title_size_pt": 21,
+        "body_size_pt": 10.5,
+        "caption_size_pt": 10,
+        # 布局
+        "slide_width_inch": 13.33,
+        "slide_height_inch": 7.5,
+        "top_bar_height_inch": 0.458,
+        "bottom_bar_height_inch": 0.417,
+        "margin_inch": 0.625,
+        # 装饰开关 — 无装饰
+        "decorations": False,
+    },
 }
 
 # ═══════════════════════════════════════════════════════════
@@ -483,6 +551,192 @@ class SlideBuilder:
         p.alignment = PP_ALIGN.LEFT
         self._add_keyword_runs(p, text, font_name, size_pt, color, theme, bold=bold)
         return txBox
+
+    # ── ref 主题专用辅助方法 ────────────────────────────
+
+    def _ref_add_nav_bar(self, slide, page_num):
+        """在幻灯片顶部添加 4 个等宽导航标签。
+
+        标签宽度 = 13.333 / 4 = 3.333 英寸，高度 0.458 英寸。
+        激活标签用 nav_active 色（#304371），其余用 nav_bg 色（#243255）。
+        根据 page_num 自动判断激活哪个标签。
+        """
+        t = self.theme
+        nav_labels = ["背景", "结果", "机制", "结论"]
+        # 根据 page_num 决定激活标签索引
+        if page_num <= 5:
+            active_idx = 0
+        elif page_num <= 9:
+            active_idx = 1
+        elif page_num <= 13:
+            active_idx = 2
+        else:
+            active_idx = 3
+
+        tab_width = Inches(13.333 / 4)  # 3.333"
+        tab_height = Inches(0.458)
+        for i, label in enumerate(nav_labels):
+            left = i * tab_width
+            color = t["nav_active"] if i == active_idx else t["nav_bg"]
+            _add_rect(slide, left, Emu(0), tab_width, tab_height, color)
+            # 标签文字（白色加粗居中）
+            label_box = _add_textbox(
+                slide, left, Emu(0), tab_width, tab_height, label,
+                t["font_title"], 12, t["white"], bold=True,
+                alignment=PP_ALIGN.CENTER,
+            )
+            try:
+                label_box.text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            except Exception:
+                pass
+
+    def _ref_add_bottom_bar(self, slide, page_num):
+        """底部全宽条（#304371），右侧白色页码。"""
+        t = self.theme
+        bar_h = Inches(t["bottom_bar_height_inch"])
+        _add_rect(
+            slide,
+            left=Emu(0),
+            top=self.sh - bar_h,
+            width=self.sw,
+            height=bar_h,
+            fill_color=t["header_bar"],
+        )
+        # 右下角页码（白色 9pt）
+        _add_textbox(
+            slide,
+            left=self.sw - Inches(1.2),
+            top=self.sh - bar_h,
+            width=Inches(1.0),
+            height=bar_h,
+            text=str(page_num),
+            font_name=t["font_caption"],
+            size_pt=9,
+            color=t["white"],
+            alignment=PP_ALIGN.RIGHT,
+        )
+
+    def _ref_add_title(self, slide, title_text):
+        """导航栏下方的页面标题，左对齐，下方带短下划线。
+
+        标题位于 margin_inch（0.625"）左侧位置，下划线宽 1.25" 高 0.031"。
+        返回标题区域底部 y 坐标（供后续内容定位）。
+        """
+        t = self.theme
+        margin = Inches(t["margin_inch"])
+        title_top = Inches(t["top_bar_height_inch"]) + Inches(0.12)
+        # 标题文字
+        _add_textbox(
+            slide,
+            left=margin,
+            top=title_top,
+            width=self.sw - margin * 2,
+            height=Inches(0.5),
+            text=title_text,
+            font_name=t["font_title"],
+            size_pt=t["title_size_pt"],
+            color=t["accent3"],
+            bold=True,
+            alignment=PP_ALIGN.LEFT,
+        )
+        # 短下划线
+        underline_top = title_top + Inches(0.48)
+        _add_rect(
+            slide,
+            left=margin,
+            top=underline_top,
+            width=Inches(1.25),
+            height=Inches(0.031),
+            fill_color=t["accent"],
+        )
+        # 返回标题区域底部 y（下划线之下 0.1" 留白）
+        return underline_top + Inches(0.13)
+
+    def _ref_add_card(self, slide, left, top, width, height, accent_color=None):
+        """添加白色直角矩形卡片（无圆角、无左侧 accent 竖条）。
+
+        - 卡片背景：card_bg（白色），直角矩形
+        返回卡片背景形状对象（便于后续在其上叠加文字时调整层级）。
+        """
+        t = self.theme
+        # 白色直角矩形背景
+        card = _add_rect(
+            slide, left, top, width, height, t["card_bg"], line_color=None
+        )
+        return card
+
+    def _ref_add_text_lines(self, slide, left, top, width, lines,
+                            font_size, color, line_height=0.48,
+                            bold=False, theme=None):
+        """添加多行文本（无项目符号），每行一个独立文本框。
+
+        支持关键词高亮（通过 _add_keyword_runs 实现）。
+        返回最后一行底部的 y 坐标。
+        """
+        t = theme if theme is not None else self.theme
+        y = top
+        for line in lines:
+            # 使用支持关键词高亮的文本框
+            txBox = slide.shapes.add_textbox(left, y, width, Inches(line_height))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.LEFT
+            self._add_keyword_runs(
+                p, line, t["font_body"], font_size, color, t, bold=bold
+            )
+            y += Inches(line_height)
+        return y
+
+    def _ref_add_conclusion_box(self, slide, left, top, width, text):
+        """ref 主题专用结论框：白色直角矩形背景 + 加粗文字（无 accent 竖条）。
+
+        高度根据文本自适应（简单按 1 行处理，高度 0.6"）。
+        文字使用 "结论：" 前缀加粗 + 正文（支持关键词高亮）。
+        返回框高度。
+        """
+        t = self.theme
+        box_height = Inches(0.75)
+        # 白色直角矩形背景
+        _add_rect(
+            slide,
+            left=left,
+            top=top,
+            width=width,
+            height=box_height,
+            fill_color=t["conclusion_bg"],
+            line_color=None,
+        )
+        # 文字框（"结论：" 前缀加粗 + 正文）
+        txBox = slide.shapes.add_textbox(
+            left + Inches(0.15),
+            top,
+            width - Inches(0.3),
+            box_height,
+        )
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        try:
+            tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        except Exception:
+            pass
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.LEFT
+        prefix_run = p.add_run()
+        prefix_run.text = "结论："
+        _set_font(prefix_run, t["font_body"], 10.5, bold=True,
+                  color=t["accent3"])
+        # 正文（支持关键词高亮）
+        self._add_keyword_runs(p, text, t["font_body"], 10.5,
+                               t["body_text"], t)
+        return box_height
+
+    def _ref_set_background(self, slide):
+        """设置 ref 主题背景色（浅灰 #EEF2F5）。"""
+        bg = slide.background
+        fill = bg.fill
+        fill.solid()
+        fill.fore_color.rgb = self.theme["background"]
 
     # ── 各页面类型构建方法 ────────────────────────────────
 
@@ -1543,6 +1797,683 @@ class SlideBuilder:
         self._add_bottom_bar(slide, page_num)
         _add_notes(slide, slide_data.get("notes", ""))
 
+    # ── ref 主题页面构建方法 ────────────────────────────
+
+    def ref_build_cover(self, prs, slide_data, page_num):
+        """ref 封面页：深蓝顶部粗条 + 居中白色直角卡片 + 深蓝标题 + 引文直角条。
+
+        仿照用户提供的参考模板设计。
+        封面页不显示导航栏。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+
+        # ── 顶部装饰条：深蓝色粗条 ──
+        _add_rect(
+            slide,
+            left=Inches(0),
+            top=Inches(0),
+            width=self.sw,
+            height=Inches(0.12),
+            fill_color=t["accent3"],
+        )
+
+        # ── 居中白色直角卡片 ──
+        container_w = Inches(10.5)
+        container_h = Inches(4.5)
+        container_left = (self.sw - container_w) // 2
+        container_top = (self.sh - container_h) // 2 - Inches(0.2)
+        _add_rect(
+            slide,
+            left=container_left,
+            top=container_top,
+            width=container_w,
+            height=container_h,
+            fill_color=t["white"],
+            line_color=None,
+        )
+
+        # ── 主标题：优先中文标题 cn_title，否则回退到 title ──
+        cn_title = slide_data.get("cn_title", "")
+        en_title = slide_data.get("en_title", "")
+        fallback_title = slide_data.get("title", "论文标题")
+        main_title = cn_title if cn_title else fallback_title
+
+        title_tb = _add_textbox(
+            slide,
+            left=container_left + Inches(0.6),
+            top=container_top + Inches(0.7),
+            width=container_w - Inches(1.2),
+            height=Inches(1.2),
+            text=main_title,
+            font_name=t["font_title"],
+            size_pt=26,
+            color=t["accent3"],
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+        )
+        # 缩小行距让多行标题更紧凑
+        for p in title_tb.text_frame.paragraphs:
+            p.space_after = Pt(2)
+            p.space_before = Pt(2)
+
+        # ── 英文副标题（居中，灰色） ──
+        underline_top = container_top + Inches(2.1) if cn_title else container_top + Inches(2.15)
+        # 优先 en_title，其次回退到 subtitle（当 cn_title 存在时）
+        en_sub = ""
+        if cn_title:
+            en_sub = en_title if en_title else slide_data.get("subtitle", "")
+        else:
+            en_sub = slide_data.get("en_subtitle", "") or slide_data.get("subtitle", "")
+
+        if en_sub:
+            _add_textbox(
+                slide,
+                left=container_left + Inches(0.8),
+                top=underline_top + Inches(0.2),
+                width=container_w - Inches(1.6),
+                height=Inches(0.5),
+                text=en_sub,
+                font_name=t["font_body"],
+                size_pt=13,
+                color=t["secondary_text"],
+                alignment=PP_ALIGN.CENTER,
+            )
+
+        # ── 引文直角条（深蓝底白字，居中） ──
+        # 优先使用 subtitle 作为引文，若有 bullets 则用 bullets
+        cite_text = ""
+        info_lines = slide_data.get("bullets", [])
+        if info_lines:
+            cite_text = "   |   ".join(info_lines)
+        else:
+            cite_text = slide_data.get("subtitle", "")
+
+        if cite_text:
+            pill_w = Inches(min(len(cite_text) * 0.09 + 0.8, 8.0))
+            pill_h = Inches(0.38)
+            pill_left = (self.sw - pill_w) // 2
+            pill_top = container_top + container_h - Inches(0.75)
+            _add_rect(
+                slide,
+                left=pill_left,
+                top=pill_top,
+                width=pill_w,
+                height=pill_h,
+                fill_color=t["accent3"],
+                line_color=None,
+            )
+            _add_textbox(
+                slide,
+                left=pill_left + Inches(0.2),
+                top=pill_top + Inches(0.02),
+                width=pill_w - Inches(0.4),
+                height=pill_h - Inches(0.04),
+                text=cite_text,
+                font_name=t["font_body"],
+                size_pt=11,
+                color=t["white"],
+                bold=True,
+                alignment=PP_ALIGN.CENTER,
+            )
+
+        # ── 底部信息（汇报人 + 日期） ──
+        _add_textbox(
+            slide,
+            left=Inches(2.0),
+            top=self.sh - Inches(0.85),
+            width=self.sw - Inches(4.0),
+            height=Inches(0.3),
+            text=slide_data.get("presenter", "汇报人：研究生组会汇报"),
+            font_name=t["font_body"],
+            size_pt=10,
+            color=t["tertiary_text"],
+            alignment=PP_ALIGN.CENTER,
+        )
+        _add_textbox(
+            slide,
+            left=Inches(2.0),
+            top=self.sh - Inches(0.55),
+            width=self.sw - Inches(4.0),
+            height=Inches(0.3),
+            text=slide_data.get("date", "2026年7月29日"),
+            font_name=t["font_body"],
+            size_pt=10,
+            color=t["tertiary_text"],
+            alignment=PP_ALIGN.CENTER,
+        )
+
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_toc(self, prs, slide_data, page_num):
+        """ref 目录页：导航栏 + 标题 + 编号卡片列表。
+
+        每个目录项为白色圆角矩形卡片，左侧带 accent 竖条，内含编号和章节名。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+        self._ref_add_nav_bar(slide, page_num)
+        self._ref_add_title(slide, slide_data.get("title", "目录"))
+
+        sections = slide_data.get("sections", [])
+        highlights = slide_data.get("highlights", [])
+
+        # 卡片布局：两列布局，每列宽度约 5.8"
+        col_gap = Inches(0.4)
+        card_w = Inches(5.8)
+        card_h = Inches(0.85)
+        margin = Inches(t["margin_inch"])
+        start_y = Inches(1.85)
+        row_gap = Inches(0.25)
+
+        for i, section in enumerate(sections):
+            col = i % 2
+            row = i // 2
+            left = margin + col * (card_w + col_gap)
+            top = start_y + row * (card_h + row_gap)
+
+            # 编号卡片（白色圆角矩形 + accent 竖条）
+            self._ref_add_card(slide, left, top, card_w, card_h,
+                               accent_color=t["accent"])
+
+            # 编号圆形（accent3 深蓝色）
+            circle_size = Inches(0.42)
+            circle_left = left + Inches(0.25)
+            circle_top = top + (card_h - circle_size) // 2
+            circle = _add_oval(
+                slide,
+                left=circle_left,
+                top=circle_top,
+                width=circle_size,
+                height=circle_size,
+                fill_color=t["accent3"],
+            )
+            ctf = circle.text_frame
+            ctf.word_wrap = False
+            try:
+                ctf.vertical_anchor = MSO_ANCHOR.MIDDLE
+            except Exception:
+                pass
+            cp = ctf.paragraphs[0]
+            cp.alignment = PP_ALIGN.CENTER
+            crun = cp.add_run()
+            crun.text = str(i + 1)
+            _set_font(crun, t["font_body"], 14, bold=True, color=t["white"])
+
+            # 章节名
+            section_title = _extract_section_title(section)
+            _add_textbox(
+                slide,
+                left=circle_left + circle_size + Inches(0.2),
+                top=top + Inches(0.12),
+                width=card_w - Inches(1.2),
+                height=Inches(0.35),
+                text=section_title,
+                font_name=t["font_title"],
+                size_pt=14,
+                color=t["accent3"],
+                bold=True,
+            )
+            # 章节描述（如有 highlights）
+            if i < len(highlights):
+                desc = highlights[i]
+                if isinstance(desc, dict):
+                    desc = desc.get("content", desc.get("title", ""))
+                _add_textbox(
+                    slide,
+                    left=circle_left + circle_size + Inches(0.2),
+                    top=top + Inches(0.48),
+                    width=card_w - Inches(1.2),
+                    height=Inches(0.3),
+                    text=str(desc),
+                    font_name=t["font_body"],
+                    size_pt=10,
+                    color=t["secondary_text"],
+                )
+
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_section(self, prs, slide_data, page_num):
+        """ref 章节分隔页：导航栏 + 居中章节编号和标题。
+
+        章节标题居中，上下带装饰横线。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+        self._ref_add_nav_bar(slide, page_num)
+
+        # 居中章节编号（深蓝色 accent3）
+        section_no = slide_data.get("section_no", page_num)
+        _add_textbox(
+            slide,
+            left=Inches(2.0),
+            top=Inches(2.4),
+            width=self.sw - Inches(4.0),
+            height=Inches(0.6),
+            text=f"PART {section_no}",
+            font_name=t["font_title"],
+            size_pt=18,
+            color=t["accent3"],
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+        )
+
+        # 上方装饰横线
+        line_w = Inches(3.0)
+        _add_rect(
+            slide,
+            left=(self.sw - line_w) // 2,
+            top=Inches(3.15),
+            width=line_w,
+            height=Inches(0.04),
+            fill_color=t["accent"],
+        )
+
+        # 章节名（居中大号）
+        section_title = slide_data.get("title", "")
+        _add_textbox(
+            slide,
+            left=Inches(1.5),
+            top=Inches(3.4),
+            width=self.sw - Inches(3.0),
+            height=Inches(1.0),
+            text=section_title,
+            font_name=t["font_title"],
+            size_pt=36,
+            color=t["accent3"],
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+        )
+
+        # 下方装饰横线
+        _add_rect(
+            slide,
+            left=(self.sw - line_w) // 2,
+            top=Inches(4.55),
+            width=line_w,
+            height=Inches(0.04),
+            fill_color=t["accent"],
+        )
+
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_content(self, prs, slide_data, page_num):
+        """ref 内容页：导航栏 + 标题 + 白色卡片（含小标题、文本行、结论框）。
+
+        文本行无项目符号，每行独立文本框；底部可选结论框。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+        self._ref_add_nav_bar(slide, page_num)
+        self._ref_add_title(slide, slide_data.get("title", ""))
+
+        margin = Inches(t["margin_inch"])
+        # 主内容卡片（白色圆角矩形 + accent 竖条）
+        card_left = margin
+        card_top = Inches(1.85)
+        card_w = self.sw - margin * 2
+        card_h = self.sh - card_top - Inches(t["bottom_bar_height_inch"]) - Inches(0.25)
+        self._ref_add_card(slide, card_left, card_top, card_w, card_h,
+                           accent_color=t["accent"])
+
+        # 卡片内边距
+        inner_left = card_left + Inches(0.3)
+        inner_top = card_top + Inches(0.25)
+        inner_w = card_w - Inches(0.6)
+
+        y = inner_top
+
+        # 小标题（sub_title 或 analysis_title）
+        sub_title = slide_data.get("sub_title") or slide_data.get("analysis_title")
+        if sub_title:
+            # 小标题（accent3 色加粗，无左侧竖条）
+            _add_textbox(
+                slide,
+                left=inner_left,
+                top=y,
+                width=inner_w,
+                height=Inches(0.34),
+                text=sub_title,
+                font_name=t["font_title"],
+                size_pt=14,
+                color=t["accent3"],
+                bold=True,
+            )
+            y += Inches(0.5)
+
+        # 文本行（无项目符号）
+        bullets = slide_data.get("bullets", [])
+        if bullets:
+            max_lines = min(len(bullets), 10)
+            line_y = self._ref_add_text_lines(
+                slide,
+                left=inner_left + Inches(0.15),
+                top=y,
+                width=inner_w - Inches(0.3),
+                lines=bullets[:max_lines],
+                font_size=t["body_size_pt"],
+                color=t["body_text"],
+                line_height=0.48,
+            )
+            y = line_y + Inches(0.15)
+
+        # 结论框（如果有 conclusion 或 key_message）
+        conclusion = slide_data.get("conclusion")
+        if not conclusion:
+            conclusion = slide_data.get("key_message")
+        if conclusion:
+            self._ref_add_conclusion_box(
+                slide,
+                left=inner_left,
+                top=y,
+                width=inner_w,
+                text=conclusion,
+            )
+
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_figure(self, prs, slide_data, page_num, images_dir=None):
+        """ref 图表页：导航栏 + 标题 + 左侧文字卡片 + 右侧图片卡片。
+
+        左侧卡片：白色圆角矩形 + accent 竖条，内含小标题、文本行、结论框。
+        右侧卡片：白色圆角矩形，内含图片和图注。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+        self._ref_add_nav_bar(slide, page_num)
+        self._ref_add_title(slide, slide_data.get("title", "图表"))
+
+        margin = Inches(t["margin_inch"])
+        # 内容区域顶部和底部
+        content_top = Inches(1.85)
+        content_bottom = self.sh - Inches(t["bottom_bar_height_inch"]) - Inches(0.25)
+        content_h = content_bottom - content_top
+
+        # 左侧文字卡片：约 5.0" 宽
+        left_card_w = Inches(5.0)
+        left_card_left = margin
+        # 右侧图片卡片：约 6.875" 宽，从约 6.0" 处开始
+        col_gap = Inches(0.25)
+        right_card_w = self.sw - margin - (left_card_left + left_card_w + col_gap)
+        right_card_left = left_card_left + left_card_w + col_gap
+
+        # ── 左侧文字卡片 ──
+        self._ref_add_card(slide, left_card_left, content_top,
+                           left_card_w, content_h, accent_color=t["accent"])
+
+        inner_left = left_card_left + Inches(0.3)
+        inner_w = left_card_w - Inches(0.6)
+        y = content_top + Inches(0.25)
+
+        # 小标题
+        sub_title = slide_data.get("sub_title") or slide_data.get("analysis_title")
+        if sub_title:
+            _add_textbox(
+                slide,
+                left=inner_left,
+                top=y,
+                width=inner_w,
+                height=Inches(0.34),
+                text=sub_title,
+                font_name=t["font_title"],
+                size_pt=13,
+                color=t["accent3"],
+                bold=True,
+            )
+            y += Inches(0.5)
+
+        # 文本行
+        bullets = slide_data.get("bullets", [])
+        if bullets:
+            max_lines = min(len(bullets), 8)
+            line_y = self._ref_add_text_lines(
+                slide,
+                left=inner_left + Inches(0.15),
+                top=y,
+                width=inner_w - Inches(0.3),
+                lines=bullets[:max_lines],
+                font_size=t["body_size_pt"],
+                color=t["body_text"],
+                line_height=0.48,
+            )
+            y = line_y + Inches(0.15)
+
+        # 结论框（贴在卡片底部）
+        conclusion = slide_data.get("conclusion")
+        if not conclusion:
+            conclusion = slide_data.get("key_message")
+        if conclusion:
+            concl_top = content_bottom - Inches(0.75)
+            self._ref_add_conclusion_box(
+                slide,
+                left=inner_left,
+                top=concl_top,
+                width=inner_w,
+                text=conclusion,
+            )
+
+        # ── 右侧图片卡片 ──
+        self._ref_add_card(slide, right_card_left, content_top,
+                           right_card_w, content_h, accent_color=t["accent"])
+
+        # 图片区域（卡片内边距）
+        img_area_left = right_card_left + Inches(0.25)
+        img_area_top = content_top + Inches(0.25)
+        img_area_w = right_card_w - Inches(0.5)
+        # 为图注预留底部空间
+        img_area_h = content_h - Inches(0.7)
+
+        self._place_image_in_area(
+            slide, slide_data, images_dir,
+            img_area_left, img_area_top, img_area_w, img_area_h, t
+        )
+
+        # 图注（图片正下方，居中）
+        caption = slide_data.get("image_caption", "")
+        if caption:
+            _add_textbox(
+                slide,
+                left=img_area_left,
+                top=img_area_top + img_area_h + Inches(0.05),
+                width=img_area_w,
+                height=Inches(0.3),
+                text=caption,
+                font_name=t["font_caption"],
+                size_pt=t["caption_size_pt"],
+                color=t["secondary_text"],
+                italic=True,
+                alignment=PP_ALIGN.CENTER,
+            )
+
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_conclusion(self, prs, slide_data, page_num):
+        """ref 结论页：导航栏 + 标题 + 核心信息卡片 + 支撑要点卡片。"""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+        self._ref_add_nav_bar(slide, page_num)
+        self._ref_add_title(slide, slide_data.get("title", "总结"))
+
+        margin = Inches(t["margin_inch"])
+        content_top = Inches(1.85)
+        content_bottom = self.sh - Inches(t["bottom_bar_height_inch"]) - Inches(0.25)
+
+        # 核心信息卡片（顶部，accent 深蓝色竖条强调）
+        key_message = slide_data.get("key_message", slide_data.get("title", ""))
+        key_card_h = Inches(1.4)
+        self._ref_add_card(slide, margin, content_top,
+                           self.sw - margin * 2, key_card_h,
+                           accent_color=t["accent"])
+
+        # 核心信息文字（"结论：" 前缀 + 正文，支持关键词高亮）
+        kbox = slide.shapes.add_textbox(
+            margin + Inches(0.35),
+            content_top + Inches(0.15),
+            self.sw - margin * 2 - Inches(0.65),
+            key_card_h - Inches(0.3),
+        )
+        ktf = kbox.text_frame
+        ktf.word_wrap = True
+        try:
+            ktf.vertical_anchor = MSO_ANCHOR.MIDDLE
+        except Exception:
+            pass
+        kp = ktf.paragraphs[0]
+        kp.alignment = PP_ALIGN.LEFT
+        prefix_run = kp.add_run()
+        prefix_run.text = "结论："
+        _set_font(prefix_run, t["font_title"], 16, bold=True,
+                  color=t["accent3"])
+        self._add_keyword_runs(kp, key_message, t["font_title"], 16,
+                               t["body_text"], t, bold=True)
+
+        # 支撑要点（下方白色卡片）
+        bullets = slide_data.get("bullets", [])
+        if bullets:
+            bullets_top = content_top + key_card_h + Inches(0.2)
+            bullets_h = content_bottom - bullets_top
+            self._ref_add_card(slide, margin, bullets_top,
+                               self.sw - margin * 2, bullets_h,
+                               accent_color=t["accent"])
+
+            inner_left = margin + Inches(0.35)
+            inner_w = self.sw - margin * 2 - Inches(0.7)
+            y = bullets_top + Inches(0.2)
+
+            max_bullets = min(len(bullets), 8)
+            for i, bullet in enumerate(bullets[:max_bullets]):
+                # 编号小方块（accent3 深蓝色）
+                _add_rect(
+                    slide,
+                    left=inner_left,
+                    top=y + Inches(0.04),
+                    width=Inches(0.18),
+                    height=Inches(0.18),
+                    fill_color=t["accent3"],
+                )
+                # 要点文本（支持关键词高亮）
+                self._add_rich_textbox(
+                    slide,
+                    left=inner_left + Inches(0.3),
+                    top=y,
+                    width=inner_w - Inches(0.3),
+                    height=Inches(0.35),
+                    text=bullet,
+                    font_name=t["font_body"],
+                    size_pt=t["body_size_pt"],
+                    color=t["body_text"],
+                    theme=t,
+                )
+                y += Inches(0.42)
+
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
+    def ref_build_qa(self, prs, slide_data, page_num):
+        """ref 问答页：居中白色直角矩形容器 + "Q & A" 文字。
+
+        问答页不显示导航栏。
+        """
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        t = self.theme
+
+        self._ref_set_background(slide)
+
+        # 居中白色直角矩形容器
+        container_w = Inches(8.0)
+        container_h = Inches(3.5)
+        container_left = (self.sw - container_w) // 2
+        container_top = (self.sh - container_h) // 2 - Inches(0.3)
+        _add_rect(
+            slide,
+            left=container_left,
+            top=container_top,
+            width=container_w,
+            height=container_h,
+            fill_color=t["white"],
+            line_color=None,
+        )
+
+        # "Q & A" 居中大字
+        key_message = slide_data.get("key_message", "Q & A")
+        _add_textbox(
+            slide,
+            left=container_left,
+            top=container_top + Inches(1.0),
+            width=container_w,
+            height=Inches(1.5),
+            text=key_message,
+            font_name=t["font_title"],
+            size_pt=48,
+            color=t["accent3"],
+            bold=True,
+            alignment=PP_ALIGN.CENTER,
+        )
+
+        # 装饰横线（深蓝色 accent3）
+        line_w = Inches(2.5)
+        _add_rect(
+            slide,
+            left=(self.sw - line_w) // 2,
+            top=container_top + Inches(2.4),
+            width=line_w,
+            height=Inches(0.04),
+            fill_color=t["accent3"],
+        )
+
+        # 副信息（Thank You 等）
+        _add_textbox(
+            slide,
+            left=container_left,
+            top=container_top + Inches(2.6),
+            width=container_w,
+            height=Inches(0.5),
+            text="Thank You",
+            font_name=t["font_title"],
+            size_pt=18,
+            color=t["accent"],
+            alignment=PP_ALIGN.CENTER,
+        )
+
+        # 底部副信息（如有 bullets）
+        bullets = slide_data.get("bullets", [])
+        if bullets:
+            y = container_top + container_h + Inches(0.2)
+            for bullet in bullets:
+                _add_textbox(
+                    slide,
+                    left=Inches(3.0),
+                    top=y,
+                    width=self.sw - Inches(6.0),
+                    height=Inches(0.3),
+                    text=bullet,
+                    font_name=t["font_body"],
+                    size_pt=11,
+                    color=t["secondary_text"],
+                    alignment=PP_ALIGN.CENTER,
+                )
+                y += Inches(0.35)
+
+        # 底部条（保持风格统一）
+        self._ref_add_bottom_bar(slide, page_num)
+        _add_notes(slide, slide_data.get("notes", ""))
+
 
 # ═══════════════════════════════════════════════════════════
 #  页面类型路由
@@ -1561,8 +2492,33 @@ PAGE_TYPE_BUILDERS = {
 
 
 def build_slide(prs, builder, slide_data, page_idx, images_dir):
-    """根据页面类型路由到对应的构建方法。"""
+    """根据页面类型路由到对应的构建方法。
+
+    对于 ref 主题，使用 ref_* 系列方法；其它主题沿用原 PAGE_TYPE_BUILDERS 路由。
+    """
     page_type = slide_data.get("page_type", "content")
+
+    # ── ref 主题专用路由 ──
+    if builder.theme_name == "ref":
+        ref_method_map = {
+            "cover":      "ref_build_cover",
+            "toc":        "ref_build_toc",
+            "section":    "ref_build_section",
+            "content":    "ref_build_content",
+            "model":      "ref_build_content",   # model 页复用 content 布局
+            "figure":     "ref_build_figure",
+            "conclusion": "ref_build_conclusion",
+            "qa":         "ref_build_qa",
+        }
+        method_name = ref_method_map.get(page_type, "ref_build_content")
+        method = getattr(builder, method_name)
+        if method_name == "ref_build_figure":
+            method(prs, slide_data, page_idx, images_dir=images_dir)
+        else:
+            method(prs, slide_data, page_idx)
+        return
+
+    # ── 原始路由（academic / minimal / trae） ──
     method_name = PAGE_TYPE_BUILDERS.get(page_type, "build_content")
     method = getattr(builder, method_name)
 
@@ -1582,6 +2538,7 @@ OPTIONAL_FIELDS = {
     "subtitle", "sections", "bullets", "image_path", "image_caption",
     "notes", "highlights", "key_message",
     "sub_title", "analysis_title", "conclusion", "kicker", "section_no",
+    "cn_title", "en_title", "label", "presenter", "date",
 }
 
 
@@ -1599,19 +2556,36 @@ def _extract_section_title(section):
 
 
 def validate_slides(slides):
-    """验证 slides.json 数据结构，返回错误列表。"""
+    """验证 slides.json 数据结构，返回 (errors, warnings)。
+
+    errors:   阻断生成的错误（必需字段缺失、类型错误等）
+    warnings: 跨环境一致性警告（R1-R7），不阻断生成但建议修复
+    """
     errors = []
+    warnings = []
+
+    # ── R1: 固定17页结构 ──
+    if len(slides) != 17:
+        warnings.append(f"  [R1] 总页数应为17页，实际 {len(slides)} 页")
+
     for i, s in enumerate(slides):
-        # 检查必需字段
-        missing = REQUIRED_FIELDS - set(s.keys())
+        keys = set(s.keys())
+        pt = s.get("page_type", "")
+
+        # 检查必需字段（封面页可用 cn_title 替代 title）
+        missing = REQUIRED_FIELDS - keys
+        if pt == "cover" and "cn_title" in keys:
+            missing.discard("title")
         if missing:
             errors.append(f"  幻灯片 #{i+1}: 缺少必需字段 {missing}")
+
         # 检查 page_type
         if "page_type" in s and s["page_type"] not in PAGE_TYPE_BUILDERS:
             errors.append(
                 f"  幻灯片 #{i+1}: 未知 page_type '{s['page_type']}', "
                 f"支持: {list(PAGE_TYPE_BUILDERS.keys())}"
             )
+
         # 检查 sections 格式（toc 页）
         sections = s.get("sections")
         if sections is not None:
@@ -1619,18 +2593,75 @@ def validate_slides(slides):
                 errors.append(f"  幻灯片 #{i+1}: sections 必须是数组")
             else:
                 for j, sec in enumerate(sections):
-                    # 允许字符串或字典（含 title 键）
                     if not isinstance(sec, (str, dict)):
                         errors.append(
                             f"  幻灯片 #{i+1}: sections[{j}] 必须是字符串或字典, "
                             f"实际类型: {type(sec).__name__}"
                         )
+                # R5: toc 四段式
+                if pt == "toc" and len(sections) != 4:
+                    warnings.append(f"  [R5] 幻灯片 #{i+1}: toc 页 sections 应为4段，实际 {len(sections)} 段")
+
         # 检查 highlights 格式
         highlights = s.get("highlights")
         if highlights is not None:
             if not isinstance(highlights, list):
                 errors.append(f"  幻灯片 #{i+1}: highlights 必须是数组")
-    return errors
+
+        # R2: 封面 cn_title + en_title
+        if pt == "cover":
+            if "cn_title" not in keys:
+                warnings.append(f"  [R2] 幻灯片 #{i+1}: 封面页缺少 cn_title（禁止仅用 title）")
+            if "en_title" not in keys:
+                warnings.append(f"  [R2] 幻灯片 #{i+1}: 封面页缺少 en_title")
+
+        # R3/R4/R7: figure 页检查
+        if pt == "figure":
+            ip = s.get("image_path")
+            if not ip:
+                warnings.append(f"  [R3] 幻灯片 #{i+1}: figure 页缺少 image_path")
+            elif isinstance(ip, list):
+                warnings.append(f"  [R4] 幻灯片 #{i+1}: image_path 是数组，违反一图一页")
+            if not s.get("image_caption"):
+                warnings.append(f"  [R7] 幻灯片 #{i+1}: figure 页缺少 image_caption")
+            if not s.get("sub_title") and not s.get("analysis_title"):
+                warnings.append(f"  [R7] 幻灯片 #{i+1}: figure 页缺少 sub_title")
+
+        # R7: content 页必填字段
+        if pt == "content":
+            if not s.get("sub_title") and not s.get("analysis_title"):
+                warnings.append(f"  [R7] 幻灯片 #{i+1}: content 页缺少 sub_title")
+            if not s.get("conclusion"):
+                warnings.append(f"  [R7] 幻灯片 #{i+1}: content 页缺少 conclusion")
+
+        # R6: bullets 数量和长度
+        _bullet_limits = {"content": (3, 4, 40), "figure": (2, 3, 40), "conclusion": (3, 5, 35)}
+        if pt in _bullet_limits:
+            min_n, max_n, max_len = _bullet_limits[pt]
+            bullets = s.get("bullets", [])
+            if bullets:
+                if len(bullets) < min_n or len(bullets) > max_n:
+                    warnings.append(
+                        f"  [R6] 幻灯片 #{i+1}: {pt} 页 bullets 应为 {min_n}-{max_n} 条，"
+                        f"实际 {len(bullets)} 条"
+                    )
+                for j, b in enumerate(bullets):
+                    if isinstance(b, str) and len(b) > max_len:
+                        warnings.append(f"  [R6] 幻灯片 #{i+1}: bullets[{j}] 长度 {len(b)} 超过 {max_len}")
+
+    # R1: page_type 序列检查
+    actual_types = [s.get("page_type", "unknown") for s in slides]
+    fig_count = actual_types.count("figure")
+    expected_seq = ["cover", "toc", "section", "content", "content", "section"]
+    expected_seq.extend(["figure"] * fig_count)
+    expected_seq.extend(["section", "content", "conclusion", "qa"])
+    for j in range(max(len(actual_types), len(expected_seq))):
+        a = actual_types[j] if j < len(actual_types) else "(缺失)"
+        e = expected_seq[j] if j < len(expected_seq) else "(多余)"
+        if a != e:
+            warnings.append(f"  [R1] 第{j+1}页 page_type 应为 '{e}'，实际 '{a}'")
+
+    return errors, warnings
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1660,8 +2691,8 @@ def main():
     parser.add_argument(
         "--theme",
         default="academic",
-        choices=["academic", "minimal", "trae"],
-        help="主题风格 (默认: academic, 可选: minimal, trae)",
+        choices=["academic", "minimal", "trae", "ref"],
+        help="主题风格 (默认: academic, 可选: minimal, trae, ref)",
     )
     args = parser.parse_args()
 
@@ -1685,7 +2716,12 @@ def main():
         sys.exit(1)
 
     # ── 验证数据 ──
-    errors = validate_slides(slides_data)
+    errors, warnings = validate_slides(slides_data)
+    if warnings:
+        print("⚠️ 跨环境一致性警告（不阻止生成，但建议修复以确保跨环境一致）：")
+        for warn in warnings:
+            print(warn)
+        print()
     if errors:
         print("数据验证错误:")
         for err in errors:
