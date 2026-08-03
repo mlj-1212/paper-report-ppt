@@ -20,8 +20,6 @@ PACKAGES = [
     ("matplotlib", "matplotlib", False),
 ]
 
-PIPS = [p[1] for p in PACKAGES if p[2]] + [PACKAGES[-1][1]]  # all including optional
-
 
 def check_python():
     major, minor = sys.version_info[:2]
@@ -42,14 +40,21 @@ def check_missing():
     return missing
 
 
-def install_all():
-    """pip install all packages."""
-    print("\n📦 正在安装依赖包...")
-    cmd = [sys.executable, "-m", "pip", "install"] + PIPS
+def install_missing(missing):
+    """pip install ONLY the missing packages.
+
+    只安装缺失的包，避免连带卸载/重装已存在的包（如 matplotlib 含约 890
+    个文件，全量 install 会触发卸载，被安全删除拦截器计为批量删除并弹窗）。
+    """
+    print("\n📦 正在安装缺失依赖包...")
+    cmd = [
+        sys.executable, "-m", "pip", "install",
+        "--no-input", "--disable-pip-version-check",
+    ] + [pip_name for pip_name, _ in missing]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print("❌ 安装失败，请手动运行：")
-        print(f"   pip install {' '.join(PIPS)}")
+        print(f"   pip install {' '.join(pip_name for pip_name, _ in missing)}")
         print(f"\n错误信息：\n{result.stderr[-500:]}")
         sys.exit(1)
     print("✅ 依赖包安装完成")
@@ -92,7 +97,7 @@ def main():
     else:
         missing_names = [p for p, _ in missing]
         print(f"\n📋 缺少：{', '.join(missing_names)}")
-        install_all()
+        install_missing(missing)
 
     # Step 3: Verify
     ok = verify()

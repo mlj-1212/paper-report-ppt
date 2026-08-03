@@ -425,14 +425,17 @@ def should_keep_image(block: dict, page_rect: fitz.Rect,
 #  图片反色检测与修复
 # ═══════════════════════════════════════════════════════════
 
-def fix_inverted_image(image_data: bytes, ext: str) -> tuple:
-    """检测并修复 PDF 提取图片的反色问题。
+def fix_inverted_image(image_data: bytes, ext: str, block: dict = None) -> tuple:
+    """检测并修复 PDF 提取图片的反色（黑底）问题。
 
-    某些 PDF 中的图片（特别是 1-bit 灰度图和某些 CMYK 图片）
-    被 PyMuPDF 提取后可能出现颜色反转——白底变黑底。
+    根因：PDF 中的 /ImageMask true 模板蒙版图（1-bit、colorspace=CSNone、bpc=1）
+    被 PyMuPDF 导出为灰度 PNG 时，墨迹=1(白)、背景=0(黑)，导致插入 PPT 后
+    出现"黑底白线"的异常图。
 
-    检测逻辑：计算图片的平均亮度，如果亮度极低（<30/255），
-    判定为反色，使用 ImageOps.invert 修复。
+    检测采用分层策略，避免误伤真实暗背景图（如荧光显微图，通常是 RGB 模式）：
+    - 第一层（确定性）：block["colorspace"]==0 且 block["bpc"]==1 判定为蒙版，直接反色。
+    - 第二层（兜底，仅限 1-bit / 灰度 L 模式）：亮度阈值判定反色。
+    - RGB / P / CMYK 模式绝不做亮度反色（防止荧光显微图等被错误反色）。
 
     返回: (修复后的 image_data, 是否修复)
     """
@@ -443,48 +446,52 @@ def fix_inverted_image(image_data: bytes, ext: str) -> tuple:
         import io
         img = PILImage.open(io.BytesIO(image_data))
 
-        # 转为 RGB 进行亮度检测
+        # ── 第一层：基于 PDF 元数据的确定性蒙版检测 ──
+        is_mask = False
+        if block is not None:
+            cs = block.get("colorspace")
+            bpc = block.get("bpc")
+            # /ImageMask true 图像：colorspace=0(CSNone) 且 bpc=1
+            if cs == 0 and bpc == 1:
+                is_mask = True
+
+        if is_mask:
+            # 蒙版图：无论 PIL 解码为 1-bit 还是灰度 L，统一反色为白底。
+            # （真实暗背景图如荧光显微图为 RGB 模式且 colorspace≠0，不会进入此分支）
+            gray = img.convert("L")
+            gray = ImageOps.invert(gray)
+            gray = gray.convert("RGB")
+            buf = io.BytesIO()
+            gray.save(buf, format="PNG")
+            return buf.getvalue(), True
+
+        # ── 第二层：兜底，仅限 1-bit / 灰度 L 模式的亮度启发式 ──
+        # 真实暗背景图（荧光显微图等）多为 RGB，不在此分支，不会被误伤。
         if img.mode == "1":
-            # 1-bit 图像：检查是否大部分是黑色（0=black）
             hist = img.histogram()
             black_ratio = hist[0] / sum(hist) if sum(hist) > 0 else 0
             if black_ratio > 0.6:
-                # 超过 60% 是黑色，很可能是反色
                 img = img.convert("L")
                 img = ImageOps.invert(img)
                 img = img.convert("RGB")
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
                 return buf.getvalue(), True
-        elif img.mode in ("L", "P", "RGB"):
-            rgb_img = img.convert("RGB") if img.mode != "RGB" else img
-            # 采样计算平均亮度
-            small = rgb_img.resize((50, 50))
+        elif img.mode == "L":
+            small = img.resize((50, 50))
             pixels = list(small.getdata())
-            avg_brightness = sum(r + g + b for r, g, b in pixels) / (len(pixels) * 3)
-            if avg_brightness < 30:
-                # 平均亮度极低，判定为反色
-                img = ImageOps.invert(rgb_img)
-                buf = io.BytesIO()
-                fmt = "PNG" if ext.lower() in ("png",) else "JPEG"
-                img.save(buf, format=fmt)
-                return buf.getvalue(), True
-        elif img.mode == "CMYK":
-            # CMYK 图片转换可能导致颜色异常
-            rgb_img = img.convert("RGB")
-            small = rgb_img.resize((50, 50))
-            pixels = list(small.getdata())
-            avg_brightness = sum(r + g + b for r, g, b in pixels) / (len(pixels) * 3)
-            if avg_brightness < 30:
-                img = ImageOps.invert(rgb_img)
+            avg_brightness = sum(pixels) / len(pixels)
+            if avg_brightness < 20:
+                img = ImageOps.invert(img)
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
                 return buf.getvalue(), True
 
-    except Exception:
-        pass
+        # RGB / P / CMYK：不做亮度反色，避免误伤真实暗背景图
+        return image_data, False
 
-    return image_data, False
+    except Exception:
+        return image_data, False
 # ═══════════════════════════════════════════════════════════
 
 def detect_vector_figure_rects(page: fitz.Page, tab_rects: list) -> list:
@@ -909,8 +916,8 @@ def extract_pdf_to_markdown(
                     ext = block["ext"]
                     image_data = block["image"]
 
-                    # 反色检测与修复
-                    image_data, was_fixed = fix_inverted_image(image_data, ext)
+                    # 反色检测与修复（传入 block 元数据做分层判定，避免误伤暗背景图）
+                    image_data, was_fixed = fix_inverted_image(image_data, ext, block)
                     if was_fixed:
                         ext = "png"  # 修复后统一存为 PNG
                         print(f"  [FIX] Image color inversion detected and fixed (page {page_num})")

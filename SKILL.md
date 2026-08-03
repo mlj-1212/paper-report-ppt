@@ -54,12 +54,12 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/install_check.py --json
 
 自检内容：
 - Python >= 3.8
-- 3 个必需 pip 包：`python-pptx`、`PyMuPDF`、`python-docx`
+- 4 个必需 pip 包：`python-pptx`、`PyMuPDF`、`python-docx`、`Pillow`（Pillow 用于 PDF 配图反色修复，缺失会导致黑底图问题）
 - 1 个可选 pip 包：`matplotlib`（公式渲染）
 
 退出码：0=就绪，2=需安装依赖。若退出码为 2，提示用户运行：
 ```bash
-pip install python-pptx PyMuPDF python-docx matplotlib
+pip install python-pptx PyMuPDF python-docx Pillow matplotlib
 ```
 
 #### S0.2 需求收集
@@ -248,7 +248,9 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
 - `--input`：slides.json 路径
 - `--images-dir`：配图文件所在目录
 - `--output`：输出 PPTX 路径
-- `--theme`：**固定使用 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面）。**禁止使用其他主题**，以确保跨环境一致性。
+- `--theme`：**固定使用 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面，对齐参考模板风格）。跨环境一致性建议统一用 `ref`。
+
+> **PDF 配图黑底自动修复**：部分 PDF 使用 `/ImageMask` 模板蒙版（1-bit 线稿/工作模型图），被 PyMuPDF 提取后会出现"黑底白线"。`parse_pdf.py` 已内置反色检测（`fix_inverted_image`），基于颜色空间元数据（colorspace=0 且 bpc=1 判定为蒙版）自动反色为白底，真实暗背景图（如荧光显微图，RGB 模式）不会被误伤。如需关闭该行为，将 `PIL_AVAILABLE` 强制为 False 即可。
 
 **脚本行为**：
 - 读取 slides.json，逐页生成 python-pptx 原生 DrawingML 对象
