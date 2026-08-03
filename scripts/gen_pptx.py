@@ -7,7 +7,7 @@ gen_pptx.py —— paper-report-ppt 技能的"直接生成"路径
 绕过 SVG 管线，输出质量对标 SVG 管线（每页 15-35 个形状、丰富装饰、精细布局）。
 
 用法:
-    python gen_pptx.py --input slides.json --images-dir ./images --output output.pptx --theme academic
+    python gen_pptx.py --input slides.json --images-dir ./images --output output.pptx --theme ref
 """
 
 import argparse
@@ -2690,9 +2690,9 @@ def main():
     )
     parser.add_argument(
         "--theme",
-        default="academic",
-        choices=["academic", "minimal", "trae", "ref"],
-        help="主题风格 (默认: academic, 可选: minimal, trae, ref)",
+        default="ref",
+        choices=["ref"],
+        help="主题风格 (固定使用 ref：深蓝导航栏 + 白色直角卡片)",
     )
     args = parser.parse_args()
 
