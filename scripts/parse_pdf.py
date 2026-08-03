@@ -39,6 +39,12 @@ except ImportError:
     print("[ERROR] PyMuPDF not installed. Run: pip install PyMuPDF", file=sys.stderr)
     sys.exit(1)
 
+try:
+    from PIL import Image as PILImage, ImageOps
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
 
 # ═══════════════════════════════════════════════════════════
 #  常量
@@ -416,7 +422,69 @@ def should_keep_image(block: dict, page_rect: fitz.Rect,
 
 
 # ═══════════════════════════════════════════════════════════
-#  矢量图检测
+#  图片反色检测与修复
+# ═══════════════════════════════════════════════════════════
+
+def fix_inverted_image(image_data: bytes, ext: str) -> tuple:
+    """检测并修复 PDF 提取图片的反色问题。
+
+    某些 PDF 中的图片（特别是 1-bit 灰度图和某些 CMYK 图片）
+    被 PyMuPDF 提取后可能出现颜色反转——白底变黑底。
+
+    检测逻辑：计算图片的平均亮度，如果亮度极低（<30/255），
+    判定为反色，使用 ImageOps.invert 修复。
+
+    返回: (修复后的 image_data, 是否修复)
+    """
+    if not PIL_AVAILABLE:
+        return image_data, False
+
+    try:
+        import io
+        img = PILImage.open(io.BytesIO(image_data))
+
+        # 转为 RGB 进行亮度检测
+        if img.mode == "1":
+            # 1-bit 图像：检查是否大部分是黑色（0=black）
+            hist = img.histogram()
+            black_ratio = hist[0] / sum(hist) if sum(hist) > 0 else 0
+            if black_ratio > 0.6:
+                # 超过 60% 是黑色，很可能是反色
+                img = img.convert("L")
+                img = ImageOps.invert(img)
+                img = img.convert("RGB")
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                return buf.getvalue(), True
+        elif img.mode in ("L", "P", "RGB"):
+            rgb_img = img.convert("RGB") if img.mode != "RGB" else img
+            # 采样计算平均亮度
+            small = rgb_img.resize((50, 50))
+            pixels = list(small.getdata())
+            avg_brightness = sum(r + g + b for r, g, b in pixels) / (len(pixels) * 3)
+            if avg_brightness < 30:
+                # 平均亮度极低，判定为反色
+                img = ImageOps.invert(rgb_img)
+                buf = io.BytesIO()
+                fmt = "PNG" if ext.lower() in ("png",) else "JPEG"
+                img.save(buf, format=fmt)
+                return buf.getvalue(), True
+        elif img.mode == "CMYK":
+            # CMYK 图片转换可能导致颜色异常
+            rgb_img = img.convert("RGB")
+            small = rgb_img.resize((50, 50))
+            pixels = list(small.getdata())
+            avg_brightness = sum(r + g + b for r, g, b in pixels) / (len(pixels) * 3)
+            if avg_brightness < 30:
+                img = ImageOps.invert(rgb_img)
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                return buf.getvalue(), True
+
+    except Exception:
+        pass
+
+    return image_data, False
 # ═══════════════════════════════════════════════════════════
 
 def detect_vector_figure_rects(page: fitz.Page, tab_rects: list) -> list:
@@ -840,6 +908,13 @@ def extract_pdf_to_markdown(
                     block = el["content"]
                     ext = block["ext"]
                     image_data = block["image"]
+
+                    # 反色检测与修复
+                    image_data, was_fixed = fix_inverted_image(image_data, ext)
+                    if was_fixed:
+                        ext = "png"  # 修复后统一存为 PNG
+                        print(f"  [FIX] Image color inversion detected and fixed (page {page_num})")
+
                     safe_filename = filename.replace(" ", "_")
                     image_name = f"{safe_filename}_p{page_num}_{img_count}.{ext}"
                     image_path = img_dir / image_name
