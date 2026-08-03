@@ -241,15 +241,14 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
   --input <work_dir>/slides.json \
   --images-dir <work_dir>/<stem>_files/ \
   --output <work_dir>/output.pptx \
-  --theme academic
+  --theme ref
 ```
 
 **参数说明**：
 - `--input`：slides.json 路径
 - `--images-dir`：配图文件所在目录
 - `--output`：输出 PPTX 路径
-- `--theme`：视觉主题（`academic` 默认 / `minimal` / `trae` / `ref`）
-  - `ref`：参考模板风格（深蓝顶部条 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面），推荐用于正式汇报
+- `--theme`：**固定使用 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面）。**禁止使用其他主题**，以确保跨环境一致性。
 
 **脚本行为**：
 - 读取 slides.json，逐页生成 python-pptx 原生 DrawingML 对象
