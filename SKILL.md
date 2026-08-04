@@ -248,7 +248,7 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
 - `--input`：slides.json 路径
 - `--images-dir`：配图文件所在目录
 - `--output`：输出 PPTX 路径
-- `--theme`：**固定使用 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面，对齐参考模板风格）。跨环境一致性建议统一用 `ref`。
+- `--theme`：**默认 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面，对齐参考模板风格）。可选 `academic` / `minimal` / `trae` 通用风格，向后兼容；跨环境一致性建议统一用 `ref`。
 
 > **PDF 配图黑底自动修复**：部分 PDF 使用 `/ImageMask` 模板蒙版（1-bit 线稿/工作模型图），被 PyMuPDF 提取后会出现"黑底白线"。`parse_pdf.py` 已内置反色检测（`fix_inverted_image`），基于颜色空间元数据（colorspace=0 且 bpc=1 判定为蒙版）自动反色为白底，真实暗背景图（如荧光显微图，RGB 模式）不会被误伤。如需关闭该行为，将 `PIL_AVAILABLE` 强制为 False 即可。
 

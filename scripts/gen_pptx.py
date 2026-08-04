@@ -2692,7 +2692,7 @@ def main():
         "--theme",
         default="ref",
         choices=["ref"],
-        help="主题风格 (固定使用 ref：深蓝导航栏 + 白色直角卡片)",
+        help="主题风格：ref=深蓝导航栏+白色直角卡片（默认，对齐参考模板，唯一可选）",
     )
     args = parser.parse_args()
 
