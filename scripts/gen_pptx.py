@@ -7,12 +7,14 @@ gen_pptx.py —— paper-report-ppt 技能的"直接生成"路径
 绕过 SVG 管线，输出质量对标 SVG 管线（每页 15-35 个形状、丰富装饰、精细布局）。
 
 用法:
-    python gen_pptx.py --input slides.json --images-dir ./images --output output.pptx --theme ref
+    python gen_pptx.py --input slides.json --images-dir ./images --theme ref
+    # --output 可省略：省略时按封面标题自动命名为 <标题>_组会汇报.pptx（落在 slides.json 同目录）
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -555,25 +557,19 @@ class SlideBuilder:
     # ── ref 主题专用辅助方法 ────────────────────────────
 
     def _ref_add_nav_bar(self, slide, page_num):
-        """在幻灯片顶部添加 4 个等宽导航标签。
+        """在幻灯片顶部添加等宽导航标签（数量与目录板块一致）。
 
-        标签宽度 = 13.333 / 4 = 3.333 英寸，高度 0.458 英寸。
+        标签宽度 = 13.333 / N 英寸（N = 板块数），高度 0.458 英寸。
         激活标签用 nav_active 色（#304371），其余用 nav_bg 色（#243255）。
-        根据 page_num 自动判断激活哪个标签。
+        标签与高亮索引均来自唯一数据源（toc 页的 sections / nav_labels），
+        由 main 在构建时通过 self.nav_labels / self.active_nav_idx 注入，
+        保证导航栏与目录、分隔页完全一致。
         """
         t = self.theme
-        nav_labels = ["背景", "结果", "机制", "结论"]
-        # 根据 page_num 决定激活标签索引
-        if page_num <= 5:
-            active_idx = 0
-        elif page_num <= 9:
-            active_idx = 1
-        elif page_num <= 13:
-            active_idx = 2
-        else:
-            active_idx = 3
-
-        tab_width = Inches(13.333 / 4)  # 3.333"
+        nav_labels = getattr(self, "nav_labels", None) or ["背景", "结果", "机制", "结论"]
+        active_idx = getattr(self, "active_nav_idx", -1)
+        n = len(nav_labels)
+        tab_width = Inches(13.333 / n)
         tab_height = Inches(0.458)
         for i, label in enumerate(nav_labels):
             left = i * tab_width
@@ -1926,7 +1922,7 @@ class SlideBuilder:
             top=self.sh - Inches(0.85),
             width=self.sw - Inches(4.0),
             height=Inches(0.3),
-            text=slide_data.get("presenter", "汇报人：研究生组会汇报"),
+            text=slide_data.get("presenter", "汇报人：待填写"),
             font_name=t["font_body"],
             size_pt=10,
             color=t["tertiary_text"],
@@ -2555,6 +2551,56 @@ def _extract_section_title(section):
     return str(section)
 
 
+# ═══════════════════════════════════════════════════════════
+#  文献类型 → 板块单一数据源
+# ═══════════════════════════════════════════════════════════
+# 不同文献类型对应不同的汇报板块（目录 sections）与导航短标签
+# （nav_labels）。这是全 skill 的唯一数据源：SKILL.md 引导 AI 据此
+# 选择板块，gen_pptx.py 据此渲染导航栏，validate 据此一致性校验。
+DOC_TYPE_TEMPLATES = {
+    "paper": {
+        "label": "研究论文",
+        "sections": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"],
+        "nav_labels": ["背景", "方法", "结果", "结论"],
+    },
+    "review": {
+        "label": "综述",
+        "sections": ["研究背景", "研究进展", "主要结论与展望"],
+        "nav_labels": ["背景", "进展", "结论"],
+    },
+    "thesis": {
+        "label": "学位论文",
+        "sections": ["研究背景与意义", "研究内容与方法", "研究结果", "总结与展望"],
+        "nav_labels": ["背景", "方法", "结果", "展望"],
+    },
+}
+
+# sections 全名 → 导航短标签（兜底映射，优先使用 toc.nav_labels）
+_SHORT_LABEL_MAP = {
+    "研究背景与科学问题": "背景",
+    "材料与方法": "方法",
+    "主要结果": "结果",
+    "讨论与结论": "结论",
+    "研究背景": "背景",
+    "研究进展": "进展",
+    "主要结论与展望": "结论",
+    "研究背景与意义": "背景",
+    "研究内容与方法": "方法",
+    "研究结果": "结果",
+    "总结与展望": "展望",
+}
+
+
+def _short_label(section):
+    """把目录板块项转成导航栏短标签（2-4 字）。"""
+    title = _extract_section_title(section)
+    if title in _SHORT_LABEL_MAP:
+        return _SHORT_LABEL_MAP[title]
+    if isinstance(section, dict) and section.get("nav"):
+        return str(section["nav"])
+    return title[:2] if title else "内容"
+
+
 def validate_slides(slides):
     """验证 slides.json 数据结构，返回 (errors, warnings)。
 
@@ -2564,9 +2610,11 @@ def validate_slides(slides):
     errors = []
     warnings = []
 
-    # ── R1: 固定17页结构 ──
-    if len(slides) != 17:
-        warnings.append(f"  [R1] 总页数应为17页，实际 {len(slides)} 页")
+    # ── R1: 页数建议（兼容论文/综述/学位不同结构，不强制 17）──
+    if len(slides) < 8 or len(slides) > 30:
+        errors.append(f"  [R1] 总页数异常（应为 8-30 页），实际 {len(slides)} 页")
+    elif len(slides) < 12 or len(slides) > 22:
+        warnings.append(f"  [R1] 建议页数 12-22 页，实际 {len(slides)} 页")
 
     for i, s in enumerate(slides):
         keys = set(s.keys())
@@ -2598,9 +2646,19 @@ def validate_slides(slides):
                             f"  幻灯片 #{i+1}: sections[{j}] 必须是字符串或字典, "
                             f"实际类型: {type(sec).__name__}"
                         )
-                # R5: toc 四段式
-                if pt == "toc" and len(sections) != 4:
-                    warnings.append(f"  [R5] 幻灯片 #{i+1}: toc 页 sections 应为4段，实际 {len(sections)} 段")
+                # R5: toc 板块数（论文4 / 综述3 / 学位4，允许 3-6 段）
+                if pt == "toc":
+                    if not (3 <= len(sections) <= 6):
+                        warnings.append(
+                            f"  [R5] 幻灯片 #{i+1}: toc 页 sections 建议 3-6 段，"
+                            f"实际 {len(sections)} 段"
+                        )
+                    nav_labels = s.get("nav_labels")
+                    if nav_labels and len(nav_labels) != len(sections):
+                        warnings.append(
+                            f"  [R5] 幻灯片 #{i+1}: nav_labels 数量({len(nav_labels)}) "
+                            f"应与 sections 数量({len(sections)})一致"
+                        )
 
         # 检查 highlights 格式
         highlights = s.get("highlights")
@@ -2649,17 +2707,38 @@ def validate_slides(slides):
                     if isinstance(b, str) and len(b) > max_len:
                         warnings.append(f"  [R6] 幻灯片 #{i+1}: bullets[{j}] 长度 {len(b)} 超过 {max_len}")
 
-    # R1: page_type 序列检查
+    # R1: page_type 序列检查（结构性，兼容不同 doc_type 的板块数）
     actual_types = [s.get("page_type", "unknown") for s in slides]
-    fig_count = actual_types.count("figure")
-    expected_seq = ["cover", "toc", "section", "content", "content", "section"]
-    expected_seq.extend(["figure"] * fig_count)
-    expected_seq.extend(["section", "content", "conclusion", "qa"])
-    for j in range(max(len(actual_types), len(expected_seq))):
-        a = actual_types[j] if j < len(actual_types) else "(缺失)"
-        e = expected_seq[j] if j < len(expected_seq) else "(多余)"
-        if a != e:
-            warnings.append(f"  [R1] 第{j+1}页 page_type 应为 '{e}'，实际 '{a}'")
+    if actual_types and actual_types[0] != "cover":
+        warnings.append("  [R1] 第1页应为 cover（封面）")
+    if len(actual_types) >= 2 and actual_types[1] != "toc":
+        warnings.append("  [R1] 第2页应为 toc（目录）")
+    if "section" not in actual_types:
+        warnings.append("  [R1] 至少应有 1 个 section 分隔页")
+    if actual_types and actual_types[-1] != "qa":
+        warnings.append("  [R1] 末页应为 qa（致谢/问答）")
+    # 首个 section 之前不应出现 content/figure/model
+    try:
+        first_sec = actual_types.index("section")
+    except ValueError:
+        first_sec = None
+    if first_sec is not None:
+        for j in range(first_sec):
+            if actual_types[j] in ("content", "figure", "model"):
+                warnings.append(
+                    f"  [R1] 第{j+1}页在首个 section 之前出现 "
+                    f"'{actual_types[j]}'，违反结构（内容页须在 section 之后）"
+                )
+    # section 分隔页数应与 toc sections 数量一致
+    toc_sec = next((s for s in slides if s.get("page_type") == "toc"), None)
+    if toc_sec is not None:
+        _n_sections = len(toc_sec.get("sections") or [])
+        _n_dividers = actual_types.count("section")
+        if _n_sections and _n_dividers != _n_sections:
+            warnings.append(
+                f"  [R1] section 分隔页数({_n_dividers}) 应与 toc sections 数"
+                f"({_n_sections}) 一致"
+            )
 
     return errors, warnings
 
@@ -2667,6 +2746,36 @@ def validate_slides(slides):
 # ═══════════════════════════════════════════════════════════
 #  主函数
 # ═══════════════════════════════════════════════════════════
+
+# ── 输出文件名自动命名（按文献命名，用户好找）──────────────────────────
+def _safe_stem(name, max_len=40):
+    """把任意标题/文件名转成安全的文件 stem（保留中英文、数字、下划线、连字符）。"""
+    if not name:
+        return ""
+    # 去掉常见前缀
+    name = re.sub(r'^(文献汇报演讲稿[:：]?|文献汇报[:：]?|文献精读汇报[:：]?)', '', name.strip())
+    # 去掉文件扩展名
+    name = re.sub(r'\.(pdf|pptx|docx)$', '', name, flags=re.I)
+    keep = []
+    for ch in name:
+        if ch.isalnum() or '\u4e00' <= ch <= '\u9fff' or ch in ' _-':
+            keep.append(ch)
+        else:
+            keep.append(' ')
+    s = ''.join(keep)
+    s = re.sub(r'\s+', '_', s.strip()).strip('_-')
+    if len(s) > max_len:
+        s = s[:max_len].rstrip('_-')
+    return s
+
+
+def _cover_title_of(slides_data):
+    """从 slides.json 取封面页标题作为文献简称来源。"""
+    for s in slides_data:
+        if s.get("page_type") == "cover":
+            return s.get("title") or s.get("cn_title") or ""
+    return (slides_data[0].get("title") or "") if slides_data else ""
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -2685,14 +2794,24 @@ def main():
     )
     parser.add_argument(
         "--output", "-o",
-        default="./output.pptx",
-        help="输出 PPTX 文件路径 (默认: ./output.pptx)",
+        default=None,
+        help="输出 PPTX 路径；缺省时按文献标题自动命名（<标题>_组会汇报.pptx，落在输入 json 同目录）",
+    )
+    parser.add_argument(
+        "--stem",
+        default=None,
+        help="文献简称，用于自动命名输出文件；缺省时从封面标题推导",
     )
     parser.add_argument(
         "--theme",
         default="ref",
         choices=["ref"],
         help="主题风格：ref=深蓝导航栏+白色直角卡片（默认，对齐参考模板，唯一可选）",
+    )
+    parser.add_argument(
+        "--presenter",
+        default=None,
+        help="封面汇报人姓名，覆盖 slides.json 中的 presenter 占位符（如「汇报人：待填写」）",
     )
     args = parser.parse_args()
 
@@ -2714,6 +2833,22 @@ def main():
     if not isinstance(slides_data, list) or len(slides_data) == 0:
         print("错误: slides.json 应为非空数组 (list of slide objects)。")
         sys.exit(1)
+
+    # ── 封面汇报人覆盖（--presenter）──
+    if args.presenter:
+        _pv = args.presenter if args.presenter.startswith("汇报人") else f"汇报人：{args.presenter}"
+        for _s in slides_data:
+            if _s.get("page_type") == "cover":
+                _s["presenter"] = _pv
+                break
+
+    # ── 决定输出文件名（缺省时按文献标题自动命名，落在输入 json 同目录）──
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        _ct = _cover_title_of(slides_data)
+        _stem = args.stem or _safe_stem(_ct) or "文献汇报"
+        output_path = input_path.parent / f"{_stem}_组会汇报.pptx"
 
     # ── 验证数据 ──
     errors, warnings = validate_slides(slides_data)
@@ -2761,22 +2896,44 @@ def main():
     builder = SlideBuilder(theme_name=args.theme)
     prs = builder.create_presentation()
 
+    # ── 导航标签单一数据源：取自 toc 页的 nav_labels / sections ──
+    _nav_labels = ["背景", "结果", "机制", "结论"]  # 兜底
+    for _s in slides_data:
+        if _s.get("page_type") == "toc":
+            _secs = _s.get("sections") or []
+            _nl = _s.get("nav_labels")
+            if _nl and isinstance(_nl, list) and len(_nl) == len(_secs):
+                _nav_labels = [str(x) for x in _nl]
+            elif _secs:
+                _nav_labels = [_short_label(x) for x in _secs]
+            break
+    builder.nav_labels = _nav_labels
+
     print(f"主题: {args.theme}")
     print(f"幻灯片数量: {len(slides_data)}")
     print(f"图片目录: {args.images_dir}")
     print("-" * 50)
 
+    section_idx = -1  # 当前所属板块索引（遇到 section 分隔页推进）
     for i, slide_data in enumerate(slides_data):
         page_num = slide_data.get("page_num", i + 1)
         page_type = slide_data.get("page_type", "content")
         title = slide_data.get("title", "(无标题)")
+
+        # 章节索引与导航栏高亮（封面/目录/致谢不高亮）
+        if page_type == "section":
+            section_idx += 1
+        if page_type in ("section", "content", "figure", "model", "conclusion"):
+            _n = len(getattr(builder, "nav_labels", [])) or 1
+            builder.active_nav_idx = min(section_idx, _n - 1) if section_idx >= 0 else 0
+        else:
+            builder.active_nav_idx = -1
 
         build_slide(prs, builder, slide_data, page_num, args.images_dir)
 
         print(f"  [{page_num}/{len(slides_data)}] {page_type}: {title}")
 
     # ── 保存 ──
-    output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(output_path))
 

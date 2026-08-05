@@ -12,7 +12,8 @@ and renders a polished DOCX speech script with:
   - A4 page size, 1-inch margins
 
 Usage:
-  python gen_speech_docx.py --input speech_data.json --output speech.docx
+  python gen_speech_docx.py --input speech_data.json
+  # --output 可省略：省略时按标题自动命名为 <标题>_演讲稿.docx（落在 speech_data.json 同目录）
   python gen_speech_docx.py -i speech_data.json -o speech.docx --verbose
 
 Input JSON schema (speech_data.json):
@@ -49,6 +50,7 @@ Input JSON schema (speech_data.json):
 
 import argparse
 import json
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -318,6 +320,26 @@ def generate_speech_docx(data, output_path):
 #  CLI
 # ═══════════════════════════════════════════════════════════
 
+# ── 输出文件名自动命名（按文献命名，用户好找）──────────────────────────
+def _safe_stem(name, max_len=40):
+    """把任意标题/文件名转成安全的文件 stem（保留中英文、数字、下划线、连字符）。"""
+    if not name:
+        return ""
+    name = re.sub(r'^(文献汇报演讲稿[:：]?|文献汇报[:：]?|文献精读汇报[:：]?)', '', name.strip())
+    name = re.sub(r'\.(pdf|pptx|docx)$', '', name, flags=re.I)
+    keep = []
+    for ch in name:
+        if ch.isalnum() or '\u4e00' <= ch <= '\u9fff' or ch in ' _-':
+            keep.append(ch)
+        else:
+            keep.append(' ')
+    s = ''.join(keep)
+    s = re.sub(r'\s+', '_', s.strip()).strip('_-')
+    if len(s) > max_len:
+        s = s[:max_len].rstrip('_-')
+    return s
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate a DOCX speech script from structured JSON data."
@@ -327,8 +349,12 @@ def main():
         help="Path to speech_data.json"
     )
     parser.add_argument(
-        "--output", "-o", required=True,
-        help="Path to output DOCX file"
+        "--output", "-o", default=None,
+        help="输出 DOCX 路径；缺省时按文献标题自动命名（<标题>_演讲稿.docx，落在输入 json 同目录）"
+    )
+    parser.add_argument(
+        "--stem", default=None,
+        help="文献简称，用于自动命名输出文件；缺省时从标题推导"
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",
@@ -350,9 +376,16 @@ def main():
         print(f"[INFO] Title: {data.get('title', 'N/A')}")
         print(f"[INFO] Sections: {len(data.get('sections', []))}")
 
+    # ── 决定输出文件名（缺省时按文献标题自动命名，落在输入 json 同目录）──
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        _stem = args.stem or _safe_stem(data.get("title", "")) or "文献汇报演讲稿"
+        output_path = input_path.parent / f"{_stem}_演讲稿.docx"
+
     # Generate DOCX
     try:
-        output_path = generate_speech_docx(data, args.output)
+        output_path = generate_speech_docx(data, output_path)
         if args.verbose:
             print(f"[INFO] DOCX saved to {output_path}")
         print(f"✅ 演讲稿已生成: {output_path}")

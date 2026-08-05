@@ -28,8 +28,9 @@ description: "Turn research PDFs into editable group-meeting PPTX following the 
 |---|---|---|
 | 文献 PDF | 是 | 研究生文献（论文 / 预印本 / 学位论文），本地路径 |
 | 汇报场景 | 否 | 组会 / 开题 / 中期 / 答辩；默认组会 |
-| 目标页数 | 否 | 固定 17 页（含封面目录），不可更改 |
+| 目标页数 | 否 | 论文约 17 页、综述 12-15 页、学位 16-20 页（含封面目录），按文献类型弹性调整 |
 | 语言 | 否 | 默认跟随文献语言；中文文献默认中文汇报 |
+| 文献类型 | 否 | 论文 / 综述 / 学位；默认由 AI 自动判断（决定目录板块数：论文4 / 综述3 / 学位4） |
 | 侧重 | 否 | IMRaD 均衡 / 问题驱动 / 创新点驱动 / 综述对比；默认均衡 |
 | 演讲稿 | 否 | 是否同步生成完整演讲稿（独立 DOCX 文稿）；默认生成 |
 
@@ -107,14 +108,14 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/parse_pdf.py <pdf_path> -o <work_dir>/<st
 
 #### 脉络模板预设
 
-根据 S0 收集的"侧重"方向，从 `references/outline-templates.md` 选取对应模板。**无论选哪个模板，最终 slides.json 的 page_type 序列必须遵循 R1 硬性规则（17页固定结构）**，区别仅在于 content 页的侧重方向不同：
+根据 S0 收集的"侧重"方向与**文献类型（论文/综述/学位）**，从 `references/outline-templates.md` 选取对应模板。**无论选哪个模板，slides.json 的 page_type 序列必须遵循 R1 结构性规则（封面→目录→section→内容/配图→…→qa），板块数量按文献类型调整**（论文4板块 / 综述3板块 / 学位4板块），区别仅在于 content 页的侧重方向不同：
 
-| 侧重方向 | 模板 | 页数范围 | 适用场景 |
-|----------|------|:---:|------|
-| IMRaD 均衡 | 模板 1 | 17 | 常规组会汇报（默认） |
-| 问题驱动 | 模板 2 | 17 | 紧凑汇报，聚焦"问题→解决" |
-| 创新点驱动 | 模板 3 | 17 | 开题/中期/答辩，强调创新 |
-| 综述对比 | 模板 4 | 17 | 文献综述，横向对比 |
+| 侧重方向 | 模板 | 文献类型 | 页数范围 | 适用场景 |
+|----------|------|:---:|:---:|------|
+| IMRaD 均衡 | 模板 1 | 论文 | 16-18 | 常规组会汇报（默认） |
+| 问题驱动 | 模板 2 | 论文 | 12-14 | 紧凑汇报，聚焦"问题→解决" |
+| 创新点驱动 | 模板 3 | 学位 | 15-18 | 开题/中期/答辩，强调创新 |
+| 综述对比 | 模板 4 | 综述 | 12-15 | 文献综述，横向对比 |
 
 #### 配图智能筛选与排序
 
@@ -171,7 +172,7 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list
     "cn_title": "文献精读汇报：<中文论文标题>",
     "en_title": "<English Paper Title>",
     "subtitle": "作者 et al., 期刊, 年份",
-    "presenter": "汇报人：研究生组会汇报",
+    "presenter": "汇报人：<你的姓名>",
     "date": "2026年7月29日",
     "notes": "今天汇报的文献是..."
   },
@@ -179,8 +180,10 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/render_formula.py <work_dir>/formula_list
     "page_num": 2,
     "page_type": "toc",
     "title": "汇报提纲",
-    "sections": ["研究背景", "科学问题", "方法总览", "主要结果", "讨论与创新", "结论与展望"],
-    "notes": "本次汇报分为六个部分..."
+    "doc_type": "paper",
+    "sections": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"],
+    "nav_labels": ["背景", "方法", "结果", "结论"],
+    "notes": "本次汇报分为四个部分（综述用 3 板块、学位用 4 板块，详见 R5）..."
   },
   {
     "page_num": 3,
@@ -240,15 +243,18 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/validate_slides_json.py <work_dir>/slides
 python ${PAPER_REPORT_PPT_DIR}/scripts/gen_pptx.py \
   --input <work_dir>/slides.json \
   --images-dir <work_dir>/<stem>_files/ \
-  --output <work_dir>/output.pptx \
-  --theme ref
+  --output <work_dir>/<paper_stem>_组会汇报.pptx \
+  --theme ref \
+  --presenter "真实姓名"
 ```
 
 **参数说明**：
 - `--input`：slides.json 路径
 - `--images-dir`：配图文件所在目录
-- `--output`：输出 PPTX 路径
-- `--theme`：**默认 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面，对齐参考模板风格）。可选 `academic` / `minimal` / `trae` 通用风格，向后兼容；跨环境一致性建议统一用 `ref`。
+- `--output`：输出 PPTX 路径。**可省略**：省略时脚本按文献封面标题自动命名为 `<标题>_组会汇报.pptx`，落在 slides.json 同目录，用户极易辨别
+- `--stem`：可选，手动指定文献简称（覆盖自动从封面标题推导），例如 `--stem 农杆菌vir基因诱导因子研究进展_邹智`
+- `--presenter`：可选，封面汇报人姓名，**覆盖** slides.json 中的 `presenter` 占位符（如「汇报人：待填写」）。不确定姓名时也可先留占位、生成时再补
+- `--theme`：**固定 `ref`**（深蓝导航栏 + 白色直角卡片 + 海军蓝标题 + 中英文对照封面，对齐参考模板风格）。**唯一可选值**（已移除 academic / minimal / trae，避免误触坏的 minimal 主题导致崩溃）
 
 > **PDF 配图黑底自动修复**：部分 PDF 使用 `/ImageMask` 模板蒙版（1-bit 线稿/工作模型图），被 PyMuPDF 提取后会出现"黑底白线"。`parse_pdf.py` 已内置反色检测（`fix_inverted_image`），基于颜色空间元数据（colorspace=0 且 bpc=1 判定为蒙版）自动反色为白底，真实暗背景图（如荧光显微图，RGB 模式）不会被误伤。如需关闭该行为，将 `PIL_AVAILABLE` 强制为 False 即可。
 
@@ -327,9 +333,11 @@ AI 基于 slides.json 的 notes + outline.md + 文献解析 MD，生成结构化
 ```bash
 python ${PAPER_REPORT_PPT_DIR}/scripts/gen_speech_docx.py \
   --input <work_dir>/speech_data.json \
-  --output <work_dir>/output_speech.docx \
+  --output <work_dir>/<paper_stem>_演讲稿.docx \
   --verbose
 ```
+
+> **命名一致性**：建议 PPTX 与 DOCX 使用同一 `<paper_stem>`，例如都叫 `农杆菌vir基因诱导因子研究进展_邹智`，这样一份文献的 PPT、演讲稿、大纲、解析 MD 文件名前缀统一，用户一眼可辨。`--output` 也可省略，脚本会按演讲稿标题自动命名为 `<标题>_演讲稿.docx`。
 
 **DOCX 排版规范**：
 - CJK 字体：Microsoft YaHei（通过 XML eastAsia 属性设置）
@@ -389,19 +397,20 @@ python ${PAPER_REPORT_PPT_DIR}/scripts/validate_pptx.py <work_dir>/output.pptx \
 
 为确保同一份文献在不同 AI 环境（TRAE / WorkBuddy / Cursor / Qwen 等）中生成结构一致的 PPT，AI 在 S2/S3 生成 slides.json 时**必须**遵守以下规则。违反任一规则将导致不同环境输出不一致。
 
-#### R1 — 固定页面结构（17页制）
+#### R1 — 结构性页面规则（按文献类型弹性页数）
 
-所有文献统一生成 **17 页**，page_type 序列固定为：
+所有文献统一遵循**结构性骨架**：`cover(1) → toc(2) → [section → 内容/配图]×N → conclusion → qa`，其中 **N = 文献类型的板块数**：
 
-```
-cover(1) → toc(2) → section(3) → content(4) → content(5) →
-section(6) → figure(7~13) → section(14) → content(15) →
-conclusion(16) → qa(17)
-```
+- 研究论文（paper）：**4 板块** → 约 17 页（含 4 个 section 分隔页）
+- 综述（review）：**3 板块**（**无"材料与方法"**）→ 约 12-15 页（含 3 个 section 分隔页）
+- 学位论文（thesis）：**4 板块** → 约 16-20 页
 
-- 结果图不足 7 张时：figure 页数 = 实际配图数（7~13 页区间弹性），后续页码顺延
-- 结果图超过 7 张时：合并次要图，最多 7 个 figure 页
-- **不允许**省略 section 分隔页；**不允许**在 section 前插入 content 页
+> 板块数由 `doc_type` 决定；目录 `sections`、`nav_labels` 与 `section` 分隔页数必须与之相等（详见 R5）。
+
+硬性约束（跨环境一致，违反即报错）：
+- **不允许**省略 section 分隔页；**不允许**在首个 section 之前插入 content/figure 页
+- 末页必须是 `qa`（致谢/问答）；封面必须是 `cover`、次页必须是 `toc`
+- 结果图不足时 figure 页数弹性收缩，超过时合并次要图（最多 7 个 figure 页）
 
 #### R2 — 封面页固定格式
 
@@ -432,13 +441,19 @@ conclusion(16) → qa(17)
 
 每个 figure 页**只放一张**配图。**禁止**将 Figure 2 和 Figure 3 合并到同一页。如果文献有 9 张图，则生成 7 个 figure 页（合并最次要的 2 张），而非 5 个 figure 页（每页放 2 张）。
 
-#### R5 — 目录固定四段式
+#### R5 — 目录板块按文献类型确定（单一数据源）
 
-toc 页的 `sections` 固定为四段，**不得**自行增减：
+toc 页的 `sections` 必须来自下方**唯一数据源**（与导航栏、section 分隔页一一对应），**不得**自行增减或混用：
 
-```json
-"sections": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"]
-```
+| doc_type | 适用 | sections（目录板块） | nav_labels（导航短标签） |
+|---|---|---|---|
+| `paper`（研究论文） | 含实验方法的研究论文/预印本 | `["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"]` | `["背景", "方法", "结果", "结论"]` |
+| `review`（综述） | 文献综述/研究进展 | `["研究背景", "研究进展", "主要结论与展望"]` | `["背景", "进展", "结论"]` |
+| `thesis`（学位论文） | 学位论文 | `["研究背景与意义", "研究内容与方法", "研究结果", "总结与展望"]` | `["背景", "方法", "结果", "展望"]` |
+
+- toc 页**必须**同时写入 `doc_type`、`sections`、`nav_labels` 三个字段，且 `nav_labels` 数量 **==** `sections` 数量。
+- **综述务必使用 3 板块**（没有"材料与方法"），否则会多出空的"材料与方法"分隔页。
+- `section` 分隔页数量必须等于 `sections` 数量，标题逐一对应。
 
 #### R6 — bullets 数量与长度
 
@@ -456,10 +471,10 @@ content 页**必须**包含 `sub_title` 和 `conclusion` 字段；figure 页**�
 
 ## 输出契约
 
-| 产物 | 路径 | 说明 |
+| 产物 | 路径（默认，可 `--output` 自定义） | 说明 |
 |---|---|---|
-| 可编辑 PPTX | `<work_dir>/output.pptx` | 主交付物 |
-| 演讲稿 | `<work_dir>/output_speech.docx` | 完整口头演讲文字稿（DOCX） |
+| 可编辑 PPTX | `<work_dir>/<paper_stem>_组会汇报.pptx`（缺省按封面标题自动命名） | 主交付物 |
+| 演讲稿 | `<work_dir>/<paper_stem>_演讲稿.docx`（缺省按标题自动命名） | 完整口头演讲文字稿（DOCX） |
 | 质检报告 | 终端输出 / `--json` 可导出 | 三项核验结果 |
 | 组会大纲 | `<work_dir>/outline.md` | 脉络文档 |
 | 文献解析 | `<work_dir>/<stem>.md` + `<stem>_files/` | 素材留档 |

@@ -24,8 +24,13 @@ from pathlib import Path
 
 EXPECTED_PAGE_COUNT = 17
 
-# R5: 目录固定四段式
-EXPECTED_TOC_SECTIONS = ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"]
+# 文献类型 → 板块单一数据源（与 gen_pptx.py 保持一致）
+# 不同文献类型对应不同的汇报板块（目录 sections）与导航短标签。
+DOC_TYPE_TEMPLATES = {
+    "paper": ["研究背景与科学问题", "材料与方法", "主要结果", "讨论与结论"],
+    "review": ["研究背景", "研究进展", "主要结论与展望"],
+    "thesis": ["研究背景与意义", "研究内容与方法", "研究结果", "总结与展望"],
+}
 
 # R6: bullets 数量和长度限制
 BULLET_LIMITS = {
@@ -36,14 +41,6 @@ BULLET_LIMITS = {
 
 # 有效的 page_type
 VALID_PAGE_TYPES = {"cover", "toc", "section", "content", "figure", "model", "conclusion", "qa"}
-
-
-def get_expected_sequence(num_figure_pages):
-    """根据 figure 页数生成期望的 page_type 序列（R1）。"""
-    seq = ["cover", "toc", "section", "content", "content", "section"]
-    seq.extend(["figure"] * num_figure_pages)
-    seq.extend(["section", "content", "conclusion", "qa"])
-    return seq
 
 
 # ═══════════════════════════════════════════════════════════
@@ -63,9 +60,11 @@ def validate(slides, manifest_filenames=None):
         errors.append("slides.json 必须是数组 (list of slide objects)")
         return errors, warnings
 
-    # ── C1/R1: 总页数 = 17 ──
-    if len(slides) != EXPECTED_PAGE_COUNT:
-        errors.append(f"[C1/R1] 总页数应为 {EXPECTED_PAGE_COUNT}，实际 {len(slides)}")
+    # ── C1/R1: 总页数（兼容论文/综述/学位不同结构，仅警告）──
+    if len(slides) < 8 or len(slides) > 30:
+        errors.append(f"[C1/R1] 总页数异常（应为 8-30 页），实际 {len(slides)} 页")
+    elif len(slides) < 12 or len(slides) > 22:
+        warnings.append(f"[R1] 建议页数 12-22 页，实际 {len(slides)} 页")
 
     if len(slides) == 0:
         errors.append("slides.json 为空数组")
@@ -83,29 +82,65 @@ def validate(slides, manifest_filenames=None):
     else:
         errors.append(f"[C2] 第1页应为 cover 类型，实际为 '{cover.get('page_type')}'")
 
-    # ── C3/R5: 第2页 sections 为四段式 ──
+    # ── C3/R5: 第2页 toc sections（兼容论文4/综述3/学位4）──
     if len(slides) > 1:
         toc = slides[1]
         if toc.get("page_type") == "toc":
             sections = toc.get("sections", [])
-            if len(sections) != 4:
-                errors.append(f"[C3/R5] 目录页 sections 应为4段，实际 {len(sections)} 段")
-            if sections != EXPECTED_TOC_SECTIONS:
-                warnings.append(f"[R5] 目录 sections 建议固定为 {EXPECTED_TOC_SECTIONS}")
+            if not isinstance(sections, list) or len(sections) == 0:
+                errors.append("[C3/R5] 目录页 sections 必须是非空数组")
+            elif not (3 <= len(sections) <= 6):
+                warnings.append(
+                    f"[R5] 目录页 sections 建议 3-6 段，实际 {len(sections)} 段"
+                    f"（论文4/综述3/学位4）"
+                )
+            # doc_type 一致性：若显式声明 doc_type，则 sections 必须匹配模板
+            doc_type = toc.get("doc_type")
+            if doc_type in DOC_TYPE_TEMPLATES and sections != DOC_TYPE_TEMPLATES[doc_type]:
+                errors.append(
+                    f"[R5] doc_type='{doc_type}' 的 sections 应为 "
+                    f"{DOC_TYPE_TEMPLATES[doc_type]}，实际 {sections}"
+                )
+            # nav_labels 数量应与 sections 一致
+            nav_labels = toc.get("nav_labels")
+            if nav_labels and len(nav_labels) != len(sections):
+                warnings.append(
+                    f"[R5] nav_labels 数量({len(nav_labels)}) 应与 "
+                    f"sections 数量({len(sections)}) 一致"
+                )
         else:
             errors.append(f"[C3] 第2页应为 toc 类型，实际为 '{toc.get('page_type')}'")
 
-    # ── C4/R1: page_type 序列正确 ──
+    # ── C4/R1: page_type 序列（结构性，兼容不同 doc_type）──
     actual_types = [s.get("page_type", "unknown") for s in slides]
-    figure_count = actual_types.count("figure")
-    expected_seq = get_expected_sequence(figure_count)
-
-    max_len = max(len(actual_types), len(expected_seq))
-    for i in range(max_len):
-        actual = actual_types[i] if i < len(actual_types) else "(缺失)"
-        expected = expected_seq[i] if i < len(expected_seq) else "(多余)"
-        if actual != expected:
-            errors.append(f"[C4/R1] 第{i+1}页 page_type 应为 '{expected}'，实际 '{actual}'")
+    if actual_types and actual_types[0] != "cover":
+        errors.append(f"[C4/R1] 第1页应为 cover，实际 '{actual_types[0]}'")
+    if len(actual_types) >= 2 and actual_types[1] != "toc":
+        errors.append(f"[C4/R1] 第2页应为 toc，实际 '{actual_types[1]}'")
+    if actual_types and actual_types[-1] != "qa":
+        warnings.append(f"[R1] 末页应为 qa（致谢/问答），实际 '{actual_types[-1]}'")
+    if "section" not in actual_types:
+        warnings.append("[R1] 至少应有 1 个 section 分隔页")
+    try:
+        first_sec = actual_types.index("section")
+    except ValueError:
+        first_sec = None
+    if first_sec is not None:
+        for j in range(first_sec):
+            if actual_types[j] in ("content", "figure", "model"):
+                errors.append(
+                    f"[C4/R1] 第{j+1}页在首个 section 之前出现 "
+                    f"'{actual_types[j]}'，内容页须在 section 之后"
+                )
+    # section 分隔页数应与 toc sections 数量一致
+    toc_sec = slides[1] if len(slides) > 1 and slides[1].get("page_type") == "toc" else None
+    if toc_sec is not None:
+        _n = len(toc_sec.get("sections") or [])
+        _d = actual_types.count("section")
+        if _n and _d != _n:
+            warnings.append(
+                f"[R1] section 分隔页数({_d}) 应与 toc sections 数({_n}) 一致"
+            )
 
     # ── 逐页检查 C5-C8, R3-R7 ──
     for i, slide in enumerate(slides):
